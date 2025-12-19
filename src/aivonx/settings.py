@@ -160,3 +160,10 @@ SPECTACULAR_SETTINGS = {
     'DESCRIPTION': 'API documentation for aivonx proxy',
     'VERSION': '1.0.0',
 }
+
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "ollama-ha-cache",
+    }
+}
