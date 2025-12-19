@@ -1,7 +1,24 @@
 from rest_framework import serializers
-from .models import node
+from .models import node, node_group
 
-class NodeSerializer(serializers.ModelSerializer):
+
+class DynamicFieldsModelSerializer(serializers.ModelSerializer):
+    """A ModelSerializer that takes an additional `fields` argument that
+    controls which fields should be displayed.
+    Usage: ?fields=id,name,address
+    """
+    def __init__(self, *args, **kwargs):
+        fields = kwargs.pop('fields', None)
+        super().__init__(*args, **kwargs)
+
+        if fields is not None:
+            allowed = set(fields)
+            existing = set(self.fields.keys())
+            for field_name in existing - allowed:
+                self.fields.pop(field_name, None)
+
+
+class NodeSerializer(DynamicFieldsModelSerializer):
     class Meta:
         model = node
         fields = [
@@ -9,6 +26,20 @@ class NodeSerializer(serializers.ModelSerializer):
             'name',
             'address',
             'port',
+            'created_at',
+        ]
+        read_only_fields = ['id', 'created_at']
+
+
+class NodeGroupSerializer(DynamicFieldsModelSerializer):
+    class Meta:
+        model = node_group
+        fields = [
+            'id',
+            'name',
+            'description',
+            'nodes',
+            'strategy',
             'created_at',
         ]
         read_only_fields = ['id', 'created_at']

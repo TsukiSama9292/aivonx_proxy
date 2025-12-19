@@ -50,7 +50,10 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'drf_spectacular',
+    'corsheaders',
     'proxy',
+    'account',
 ]
 
 MIDDLEWARE = [
@@ -140,10 +143,20 @@ REST_FRAMEWORK = {
     "PAGE_SIZE": 100, # List API 支援分頁時，每頁只傳回 100 筆
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.LimitOffsetPagination", # 分頁的參數是使用 limit 跟 offset
     "DEFAULT_AUTHENTICATION_CLASSES": ( # 驗證方式
+        "rest_framework_simplejwt.authentication.JWTAuthentication", # JWT (access tokens)
         "rest_framework.authentication.SessionAuthentication", # Session
         "rest_framework.authentication.TokenAuthentication", # Token
     ),
     "DEFAULT_PERMISSION_CLASSES": ( # 權限要求
         "rest_framework.permissions.IsAuthenticated", # 必須要驗證過才能呼叫 API
-    ), 
+    ),
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+}
+
+APPEND_SLASH = False # 關閉自動補 / 功能，避免 API 呼叫錯誤
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'aivonx proxy API',
+    'DESCRIPTION': 'API documentation for aivonx proxy',
+    'VERSION': '1.0.0',
 }

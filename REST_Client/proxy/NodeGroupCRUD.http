@@ -1,0 +1,16 @@
+### User Login
+# @name account_login
+POST {{baseUrl}}/api/account/login/
+Content-Type: application/json
+
+{
+  "account": "root",
+  "password": "changeme"
+}
+
+### Capture
+@AccessToken = {{account_login.response.body.access}}
+@RefreshToken = {{account_login.response.body.refresh}}
+
+######################################
+

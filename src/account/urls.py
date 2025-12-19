@@ -1,6 +1,7 @@
-from django.urls import path
+from django.urls import re_path
 from .views import LoginView
 
 urlpatterns = [
-    path("login/", LoginView.as_view(), name="root-login"),
+    # Accept both /login and /login/ to be tolerant of client URLs
+    re_path(r"^login/?$", LoginView.as_view(), name="root-login"),
 ]

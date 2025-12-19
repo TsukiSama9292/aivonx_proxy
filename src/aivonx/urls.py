@@ -22,3 +22,11 @@ urlpatterns = [
     path("api/proxy/", include("proxy.urls")),
     path("api/account/", include("account.urls")),
 ]
+
+from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
+
+urlpatterns += [
+    path('api/schema/', SpectacularAPIView.as_view(), name='schema'), # OpenAPI 3 schema YAML
+    path('swagger/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
+    path('redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
+]
