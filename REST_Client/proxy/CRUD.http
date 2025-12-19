@@ -1,0 +1,8 @@
+# @name account_login
+POST {{baseUrl}}/api/account/login
+Content-Type: application/json
+
+{
+  "account": "root",
+  "password": "TKbJL66ppA29"
+}
