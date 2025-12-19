@@ -7,7 +7,6 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from loguru import logger
 from django.core.cache import cache
 
-
 class HAProxyManager:
     """High-availability manager for Ollama nodes.
 

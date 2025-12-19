@@ -31,7 +31,7 @@ async def application(scope, receive, send):
 			if message['type'] == 'lifespan.startup':
 				try:
 					# import here so Django is fully loaded
-					from proxy.utils.ha_manager import init_global_manager_from_db
+					from proxy.utils.proxy_manager import init_global_manager_from_db
 
 					init_global_manager_from_db()
 				except Exception:

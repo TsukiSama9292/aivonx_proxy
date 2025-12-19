@@ -20,10 +20,10 @@ async def proxy_request(request):
 		return JsonResponse({"error": "invalid json body"}, status=400)
 
 	app_config = apps.get_app_config("proxy")
-	mgr = getattr(app_config, "ha_manager", None)
+	mgr = getattr(app_config, "proxy_manager", None)
 	if mgr is None:
 		# try to import global manager
-		from .utils.ha_manager import get_global_manager
+		from .utils.proxy_manager import get_global_manager
 
 		mgr = get_global_manager()
 	if mgr is None:

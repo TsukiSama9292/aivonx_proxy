@@ -5,7 +5,7 @@ from loguru import logger
 class ProxyConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'proxy'
-    ha_manager = None
+    proxy_manager = None
 
     def ready(self):
         # Do not access the DB during app ready. HA manager initialization
