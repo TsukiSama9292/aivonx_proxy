@@ -1,3 +1,4 @@
+from drf_spectacular.utils import extend_schema
 from rest_framework import viewsets
 from .models import (
     node,
@@ -8,6 +9,7 @@ from .serializers import (
     NodeGroupSerializer
 )
 
+@extend_schema(tags=['Node'])
 class NodeViewSet(viewsets.ModelViewSet):
     queryset = node.objects.all()
     serializer_class = NodeSerializer
@@ -23,6 +25,7 @@ class NodeViewSet(viewsets.ModelViewSet):
                     kwargs['fields'] = fields
         return super().get_serializer(*args, **kwargs)
 
+@extend_schema(tags=['NodeGroup'])
 class NodeGroupViewSet(viewsets.ModelViewSet):
     queryset = node_group.objects.all()
     serializer_class = NodeGroupSerializer

@@ -1,9 +1,24 @@
+from drf_spectacular.utils import extend_schema
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import permissions, status
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
+from .serializers import LoginSerializer
 
+@extend_schema(
+    tags=['Account'],
+    request=LoginSerializer,
+    responses={
+        200: {
+            'type': 'object',
+            'properties': {
+                'access': {'type': 'string'},
+                'refresh': {'type': 'string'}
+            }
+        }
+    }
+)
 class LoginView(APIView):
     permission_classes = [permissions.AllowAny]
 
