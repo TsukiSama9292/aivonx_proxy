@@ -33,7 +33,17 @@ async def application(scope, receive, send):
 					# import here so Django is fully loaded
 					from proxy.utils.proxy_manager import init_global_manager_from_db
 
-					init_global_manager_from_db()
+					# Initialize manager and run initial refresh/health checks synchronously
+					mgr = init_global_manager_from_db()
+					# If manager exposes async methods, await them so cache is populated before serving
+					try:
+						await mgr.refresh_models_all()
+					except Exception:
+						pass
+					try:
+						await mgr.health_check_all()
+					except Exception:
+						pass
 				except Exception:
 					# safe to ignore; manager can be initialized later
 					pass
