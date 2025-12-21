@@ -1,0 +1,138 @@
+{% extends 'proxy/base.html' %}
+
+{% block title %}Manage Proxy{% endblock %}
+
+{% block content %}
+<section class="card">
+  <h2>Proxy Configuration</h2>
+  <form method="post">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="update_config">
+    <div class="form-row">
+      <label for="id_strategy">Strategy</label>
+      {{ config_form.strategy }}
+    </div>
+    <div class="form-row">
+    </div>
+    <div class="form-row">
+      <button type="submit">Save Config</button>
+    </div>
+  </form>
+</section>
+
+<section class="card">
+  <h2>Nodes</h2>
+  <div class="nodes-header">
+    <button id="open-add-node" class="add-node-btn">Add Node</button>
+  </div>
+  <table class="nodes">
+    <thead><tr><th>ID</th><th>Name</th><th>Address</th><th>Port</th><th>Active</th><th>Actions</th></tr></thead>
+    <tbody>
+      {% for n in nodes %}
+        <tr>
+          <td>{{ n.id }}</td>
+          <td>{{ n.name }}</td>
+          <td>{{ n.address }}</td>
+          <td>{{ n.port }}</td>
+          <td>{{ n.active }}</td>
+          <td>
+            <button class="edit-node-btn" data-id="{{ n.id }}" data-name="{{ n.name }}" data-address="{{ n.address }}" data-port="{{ n.port }}">Update</button>
+            &nbsp;
+            <form method="post" style="display:inline">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="delete_node">
+              <input type="hidden" name="node_id" value="{{ n.id }}">
+              <button type="submit" class="btn-danger">Delete</button>
+            </form>
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="6">No nodes configured</td></tr>
+      {% endfor %}
+    </tbody>
+    <!-- Hidden Add Node form will be shown in modal -->
+  </form>
+</section>
+
+  <!-- Edit/Add Node Modal -->
+  <div id="node-modal" class="modal" aria-hidden="true" style="display:none">
+    <div class="modal-content">
+      <button id="modal-close" class="modal-close">×</button>
+      <h3 id="modal-title">Edit Node</h3>
+      <form id="modal-form" method="post">
+        {% csrf_token %}
+        <input type="hidden" name="node_id" id="modal-node-id" value="">
+        <input type="hidden" name="action" id="modal-action" value="">
+        <div class="form-row">
+          <label for="modal-name">Name</label>
+          <input id="modal-name" type="text" name="name" required />
+        </div>
+        <div class="form-row">
+          <label for="modal-address">Domain / IP</label>
+          <input id="modal-address" type="text" name="address" required />
+        </div>
+        <div class="form-row">
+          <label for="modal-port">Port</label>
+          <input id="modal-port" type="number" name="port" required />
+        </div>
+        <div class="form-row">
+          <button type="submit" id="modal-submit">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+  // Modal handling for Add / Edit Node
+  const modal = document.getElementById('node-modal');
+  const modalTitle = document.getElementById('modal-title');
+  const modalForm = document.getElementById('modal-form');
+  const modalNodeId = document.getElementById('modal-node-id');
+  const modalAction = document.getElementById('modal-action');
+  const modalName = document.getElementById('modal-name');
+  const modalAddress = document.getElementById('modal-address');
+  const modalPort = document.getElementById('modal-port');
+  const openAddBtn = document.getElementById('open-add-node');
+  const closeBtn = document.getElementById('modal-close');
+
+  function openModal(mode, data) {
+    modal.style.display = 'flex';
+    modal.setAttribute('aria-hidden', 'false');
+    if (mode === 'add') {
+      modalTitle.textContent = 'Add Node';
+      modalAction.value = 'add_node';
+      modalNodeId.value = '';
+      modalName.value = '';
+      modalAddress.value = '';
+      modalPort.value = '';
+    } else {
+      modalTitle.textContent = 'Edit Node';
+      modalAction.value = 'edit_node';
+      modalNodeId.value = data.id || '';
+      modalName.value = data.name || '';
+      modalAddress.value = data.address || '';
+      modalPort.value = data.port || '';
+    }
+  }
+
+  function closeModal() {
+    modal.style.display = 'none';
+    modal.setAttribute('aria-hidden', 'true');
+  }
+
+  document.querySelectorAll('.edit-node-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const id = btn.getAttribute('data-id');
+      const name = btn.getAttribute('data-name');
+      const address = btn.getAttribute('data-address');
+      const port = btn.getAttribute('data-port');
+      openModal('edit', { id, name, address, port });
+    });
+  });
+
+  openAddBtn.addEventListener('click', () => openModal('add', {}));
+  closeBtn.addEventListener('click', closeModal);
+  window.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+  </script>
+
+{% endblock %}

@@ -38,7 +38,7 @@ from .models import ProxyConfig
 class ProxyConfigSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProxyConfig
-        fields = ['id', 'strategy', 'weight', 'updated_at']
+        fields = ['id', 'strategy', 'updated_at']
         read_only_fields = ['id', 'updated_at']
 
 

@@ -1,0 +1,22 @@
+{% extends 'proxy/base.html' %}
+
+{% block title %}Login{% endblock %}
+
+{% block content %}
+<section class="card login-card">
+  <h2>Login</h2>
+  <form method="post" action="{% url 'proxy_ui_login' %}">
+    {% csrf_token %}
+    <div class="form-row">
+      <input type="hidden" name="username" id="id_username" value="root">
+    </div>
+    <div class="form-row">
+      <label for="id_password">Password</label>
+      <input type="password" name="password" id="id_password" required>
+    </div>
+    <div class="form-row">
+      <button type="submit">Login</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

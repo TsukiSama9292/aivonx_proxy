@@ -27,8 +27,6 @@ class ProxyConfig(models.Model):
 
     id = models.AutoField(primary_key=True)
     strategy = models.CharField(max_length=32, choices=STRATEGY_CHOICES, default=STRATEGY_LEAST_ACTIVE)
-    # weight can be used for tuning least-active calculations in future
-    weight = models.FloatField(default=1.0)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:

@@ -148,6 +148,10 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# After login redirect to the proxy management UI
+LOGIN_REDIRECT_URL = '/ui/manage'
+LOGOUT_REDIRECT_URL = ''
+
 REST_FRAMEWORK = {
     "PAGE_SIZE": 100, # List API 支援分頁時，每頁只傳回 100 筆
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.LimitOffsetPagination", # 分頁的參數是使用 limit 跟 offset

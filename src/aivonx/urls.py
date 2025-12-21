@@ -19,15 +19,18 @@ from django.urls import path, include
 from django.views.generic.base import RedirectView
 from .views import HealthCheckView
 from proxy.handlers import health as proxy_health
+from proxy.web import ProxyLoginView, proxy_logout_view, manage as proxy_manage
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/health', HealthCheckView.as_view(), name='health-check'),
     path("api/proxy/", include("proxy.urls")),
-    # accept bare /api/proxy without redirect — call proxy health view directly
     path("api/proxy", proxy_health),
-
     path("api/account/", include("account.urls")),
+    # Web UI
+    path('', ProxyLoginView.as_view(), name='proxy_ui_login'),
+    path('ui/logout', proxy_logout_view, name='proxy_ui_logout'),
+    path('ui/manage', proxy_manage, name='proxy_ui_manage'),
 ]
 
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
@@ -37,3 +40,10 @@ urlpatterns += [
     path('swagger', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('redoc', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
 ]
+
+from django.conf import settings
+if settings.DEBUG:
+    # Serve static files from app 'static/' directories during development
+    from django.contrib.staticfiles.urls import staticfiles_urlpatterns
+
+    urlpatterns += staticfiles_urlpatterns()

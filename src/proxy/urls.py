@@ -13,6 +13,7 @@ from .handlers import (
     state,
 )
 from .views import proxy_config
+from .web import ProxyLoginView, proxy_logout_view, manage as proxy_manage
 
 router = DefaultRouter(trailing_slash='')
 router.register(r'nodes', NodeViewSet)

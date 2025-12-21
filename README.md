@@ -13,14 +13,14 @@ Lightweight reverse-proxy and HA manager for Ollama model-serving nodes.
 ## Core features
 - Support Ollama API: add url `url/api/proxy` for your tools
 - Ollama reverse proxy: configure your tools to use the proxy as the Ollama
-  API endpoint (for example `https://your-host.example.com/api/proxy`).
+  API endpoint (for example `http://localhost:8000/api/proxy`).
 - CRUD management for Ollama nodes (`/api/proxy/nodes`)
 - Health endpoint: `GET /api/proxy` or `GET /api/proxy/` — returns 200 when any node is available
 - Model discovery: `GET /api/proxy/tags` — lists models available on nodes
 - Proxy endpoints: `POST /api/proxy/chat`, `/generate`, `/embed`, `/embeddings`
   that forward requests to appropriate nodes and support streaming
-- HA/Load strategies: `least_active` (default) and `lowest_latency`
-- Periodic background tasks: health checks and model refresh (default: 1 minute)
+- HA/Load strategies: `least_active` (default, load-balancing) and `lowest_latency`
+-- Periodic background tasks: health checks and model refresh (default: 1 minute)
 
 ## Quick Start
 
@@ -86,6 +86,17 @@ docker compose up -d
 - The HA manager stores runtime state in Django cache. On startup the manager
   populates state from the database and schedules periodic refreshes (default
   every minute).
+
+## Web UI
+
+- The web management UI is available at http://localhost:8000 (when running locally).
+- Default administrative username is `root`. The default password is `changeme`.
+- To change the default `root` password, set it in a repository `.env` file at the
+  project root (one level above `src`) using the `ROOT_PASSWORD` variable, e.g.: 
+
+```env
+ROOT_PASSWORD=your_secure_password_here
+```
 
 ## Docs
 

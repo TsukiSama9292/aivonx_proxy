@@ -13,9 +13,9 @@ Requests and responses use JSON and the following fields are supported:
 
 - `id` (integer) — read-only primary key
 - `strategy` (string) — selection strategy; allowed values:
-  - `least_active` (default) — choose node with lowest active requests
+  - `least_active` (default) — load-balancing strategy that prefers less-burdened nodes
   - `lowest_latency` — choose node with lowest measured latency
-- `weight` (number) — a tunable weight value (reserved for future use)
+- `updated_at` (string, ISO timestamp) — read-only last update time
 - `updated_at` (string, ISO timestamp) — read-only last update time
 
 ## Examples
@@ -32,7 +32,6 @@ Response
 {
   "id": 1,
   "strategy": "least_active",
-  "weight": 1.0,
   "updated_at": "2025-12-21T12:34:56.789012Z"
 }
 ```
@@ -51,7 +50,6 @@ Response
 {
   "id": 1,
   "strategy": "lowest_latency",
-  "weight": 1.0,
   "updated_at": "2025-12-21T12:45:00.123456Z"
 }
 ```

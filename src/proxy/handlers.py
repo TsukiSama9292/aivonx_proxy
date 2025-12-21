@@ -128,7 +128,7 @@ def health(request):
     request={'application/json': {'type': 'object'}},
     responses={200: {'type': 'object'}, 400: {'type': 'object'}, 404: {'type': 'object'}, 502: {'type': 'object'}, 503: {'type': 'object'}}
 )
-@csrf_exempt
+
 @api_view(['POST'])
 async def proxy_generate(request):
     mgr = _get_manager()
@@ -263,7 +263,7 @@ async def proxy_generate(request):
         "and `keep_alive` (seconds, 0 to unload)."
     )
 )
-@csrf_exempt
+
 @api_view(['POST'])
 async def proxy_chat(request):
     mgr = _get_manager()
@@ -328,7 +328,7 @@ async def proxy_chat(request):
     request={'application/json': {'type': 'object'}},
     responses={200: {'type': 'object'}, 400: {'type': 'object'}, 404: {'type': 'object'}, 502: {'type': 'object'}, 503: {'type': 'object'}}
 )
-@csrf_exempt
+
 @api_view(['POST'])
 async def proxy_embed(request):
     mgr = _get_manager()
@@ -377,7 +377,7 @@ async def proxy_embed(request):
     request={'application/json': {'type': 'object'}},
     responses={200: {'type': 'object'}, 400: {'type': 'object'}, 404: {'type': 'object'}, 502: {'type': 'object'}, 503: {'type': 'object'}}
 )
-@csrf_exempt
+
 @api_view(['POST'])
 async def proxy_embeddings(request):
     mgr = _get_manager()
