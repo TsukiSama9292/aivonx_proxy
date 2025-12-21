@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import node, node_group
+from .models import node
 
 
 class DynamicFieldsModelSerializer(serializers.ModelSerializer):
@@ -26,20 +26,10 @@ class NodeSerializer(DynamicFieldsModelSerializer):
             'name',
             'address',
             'port',
+            'active',
             'created_at',
         ]
         read_only_fields = ['id', 'created_at']
 
 
-class NodeGroupSerializer(DynamicFieldsModelSerializer):
-    class Meta:
-        model = node_group
-        fields = [
-            'id',
-            'name',
-            'description',
-            'nodes',
-            'strategy',
-            'created_at',
-        ]
-        read_only_fields = ['id', 'created_at']
+# Node groups were removed — no serializer needed

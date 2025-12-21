@@ -60,21 +60,14 @@ class HAProxyManager:
             logger.debug("ping failed for {}: {}", addr, e)
             return False, float("inf")
 
-    async def _refresh_from_db_async(self, group_name: Optional[str] = None) -> None:
+    async def _refresh_from_db_async(self) -> None:
         """Async version of refresh_from_db that wraps ORM calls with sync_to_async."""
         try:
-            from proxy.models import node as NodeModel, node_group as NodeGroupModel
+            from proxy.models import node as NodeModel
 
             @sync_to_async
             def get_nodes():
                 qs = NodeModel.objects.filter(active=True)
-                if group_name:
-                    try:
-                        grp = NodeGroupModel.objects.get(name=group_name)
-                        qs = grp.nodes.filter(active=True)
-                    except NodeGroupModel.DoesNotExist:
-                        qs = NodeModel.objects.none()
-                
                 nodes_list = []
                 id_map = {}
                 for n in qs:
@@ -99,33 +92,26 @@ class HAProxyManager:
         except Exception as e:
             logger.debug("refresh_from_db_async failed: {}", e)
 
-    def refresh_from_db(self, group_name: Optional[str] = None) -> None:
+    def refresh_from_db(self) -> None:
         """Load nodes from DB into the manager and cache.
 
-        If `group_name` is provided, only nodes in that `node_group` are loaded.
-        This uses the `node` and `node_group` models in the `proxy` app.
+        Loads all active `node` entries from the DB into the active pool.
         """
         try:
             # Import models here to avoid import-time DB access when module is imported
-            from proxy.models import node as NodeModel, node_group as NodeGroupModel
+            from proxy.models import node as NodeModel
 
             # Check if we're in async context and need to defer to async version
             try:
                 loop = asyncio.get_running_loop()
                 # We're in async context; schedule async version
-                asyncio.create_task(self._refresh_from_db_async(group_name))
+                asyncio.create_task(self._refresh_from_db_async())
                 return
             except RuntimeError:
                 # No running loop, proceed synchronously
                 pass
 
             qs = NodeModel.objects.filter(active=True)
-            if group_name:
-                try:
-                    grp = NodeGroupModel.objects.get(name=group_name)
-                    qs = grp.nodes.filter(active=True)
-                except NodeGroupModel.DoesNotExist:
-                    qs = NodeModel.objects.none()
 
             nodes: List[str] = []
             id_map: dict[str, str] = {}
@@ -451,14 +437,14 @@ def init_global_manager(nodes: List[str], health_path: str = "/health") -> HAPro
     return _global_manager
 
 
-def init_global_manager_from_db(group_name: Optional[str] = None, health_path: str = "/api/health") -> HAProxyManager:
-    """Initialize global manager by loading nodes from DB (optionally filtered by group name)."""
+def init_global_manager_from_db(health_path: str = "/api/health") -> HAProxyManager:
+    """Initialize global manager by loading nodes from DB."""
     global _global_manager
     if _global_manager is None:
         logger.info("init_global_manager_from_db: initializing manager in process")
         mgr = HAProxyManager(nodes=None, health_path=health_path)
         try:
-            mgr.refresh_from_db(group_name=group_name)
+            mgr.refresh_from_db()
         except Exception:
             # DB might be unavailable during migrations/startup
             pass

@@ -2,7 +2,6 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .viewsets import (
     NodeViewSet,
-    NodeGroupViewSet
 )
 from .handlers import (
     health,
@@ -16,7 +15,6 @@ from .handlers import (
 
 router = DefaultRouter(trailing_slash='')
 router.register(r'nodes', NodeViewSet)
-router.register(r'node-groups', NodeGroupViewSet)
 
 urlpatterns = [
     # Health endpoint at the app root should be checked before the DRF router
