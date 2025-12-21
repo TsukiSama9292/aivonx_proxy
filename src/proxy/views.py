@@ -4,6 +4,7 @@ from django.views.decorators.http import require_POST, require_GET
 from django.views.decorators.csrf import csrf_exempt
 from django.apps import apps
 from loguru import logger
+from drf_spectacular.utils import extend_schema
 from django.http import StreamingHttpResponse
 from django.core.cache import cache
 
@@ -33,6 +34,31 @@ def _select_node_for_model(mgr, model_name, strategy=None):
 		return None
 
 
+@extend_schema(
+	tags=['Proxy'],
+	request={
+		'application/json': {
+			'type': 'object',
+			'properties': {
+				'model': {'type': 'string'},
+				'input': {'type': 'string'},
+			},
+			'required': ['model', 'input']
+		}
+	},
+	responses={
+		200: {
+			'type': 'object',
+			'properties': {
+				'embedding': {'type': 'array', 'items': {'type': 'number'}}
+			}
+		},
+		400: {'type': 'object', 'properties': {'error': {'type': 'string'}}},
+		404: {'type': 'object', 'properties': {'error': {'type': 'string'}}},
+		502: {'type': 'object', 'properties': {'error': {'type': 'string'}}},
+		503: {'type': 'object', 'properties': {'error': {'type': 'string'}}},
+	}
+)
 @require_POST
 async def proxy_embed(request):
 	"""Proxy endpoint compatible with Ollama's `/api/embed`.
@@ -89,6 +115,34 @@ async def proxy_embed(request):
 
 
 
+@extend_schema(
+	tags=['Proxy'],
+	request={
+		'application/json': {
+			'type': 'object',
+			'properties': {
+				'model': {'type': 'string'},
+				'input': {'type': ['string', 'array']},
+			},
+			'required': ['model', 'input']
+		}
+	},
+	responses={
+		200: {
+			'type': 'object',
+			'properties': {
+				'embeddings': {
+					'type': 'array',
+					'items': {'type': 'array', 'items': {'type': 'number'}}
+				}
+			}
+		},
+		400: {'type': 'object', 'properties': {'error': {'type': 'string'}}},
+		404: {'type': 'object', 'properties': {'error': {'type': 'string'}}},
+		502: {'type': 'object', 'properties': {'error': {'type': 'string'}}},
+		503: {'type': 'object', 'properties': {'error': {'type': 'string'}}},
+	}
+)
 @require_POST
 async def proxy_embeddings(request):
 	"""Proxy endpoint compatible with Ollama's legacy `/api/embeddings`.
@@ -145,6 +199,61 @@ async def proxy_embeddings(request):
 
 
 
+@extend_schema(
+	tags=['Proxy'],
+	request={
+		'application/json': {
+			'type': 'object',
+			'properties': {
+				'model': {'type': 'string'},
+				'prompt': {'type': 'string'},
+				'suffix': {'type': 'string'},
+				'images': {'type': 'array', 'items': {'type': 'string'}},
+				'format': {'type': 'string'},
+				'options': {'type': 'object'},
+				'system': {'type': 'string'},
+				'template': {'type': 'string'},
+				'context': {'type': ['array', 'object']},
+				'stream': {'type': 'boolean'},
+				'raw': {'type': 'boolean'},
+				'keep_alive': {'type': 'string'},
+			},
+			'required': ['model']
+		}
+	},
+	responses={
+		200: {
+			'description': 'Streaming series of partial response objects (or single final object when `stream=false`).',
+			'type': 'object',
+			'properties': {
+				'model': {'type': 'string'},
+				'created_at': {'type': 'string'},
+				'response': {'type': 'string'},
+				'done': {'type': 'boolean'},
+				'context': {'type': ['array', 'object']},
+				'total_duration': {'type': 'integer'},
+				'load_duration': {'type': 'integer'},
+				'prompt_eval_count': {'type': 'integer'},
+				'prompt_eval_duration': {'type': 'integer'},
+				'eval_count': {'type': 'integer'},
+				'eval_duration': {'type': 'integer'},
+				'done_reason': {'type': 'string'},
+			}
+		},
+		400: {'type': 'object', 'properties': {'error': {'type': 'string'}}},
+		404: {'type': 'object', 'properties': {'error': {'type': 'string'}}},
+		502: {'type': 'object', 'properties': {'error': {'type': 'string'}}},
+		503: {'type': 'object', 'properties': {'error': {'type': 'string'}}},
+	},
+	description=(
+		"Generate a completion for a given `model` and `prompt`. This endpoint supports "
+		"streaming (default) where a sequence of partial JSON objects are returned, "
+		"or non-streaming mode when `stream=false` returning a single final JSON object. "
+		"Advanced parameters include `format` (json), `options` (model runtime parameters), "
+		"`system`, `template`, `context`, `raw`, `suffix`, `images` and `keep_alive`. "
+		"When `format=json` instruct the model to emit valid JSON in responses."
+	)
+)
 @require_POST
 async def proxy_generate(request):
 	"""Proxy endpoint compatible with Ollama's `/api/generate`.
@@ -206,6 +315,75 @@ async def proxy_generate(request):
 
 
 
+@extend_schema(
+	tags=['Proxy'],
+	request={
+		'application/json': {
+			'type': 'object',
+			'properties': {
+				'model': {'type': 'string'},
+				'messages': {
+					'type': 'array',
+					'items': {
+						'type': 'object',
+						'properties': {
+							'role': {'type': 'string', 'enum': ['system', 'user', 'assistant', 'tool']},
+							'content': {'type': 'string'},
+							'images': {'type': 'array', 'items': {'type': 'string'}},
+							'tool_calls': {'type': 'array', 'items': {'type': 'object'}},
+						},
+						'required': ['role', 'content']
+					}
+				},
+				'tools': {'type': 'array', 'items': {'type': 'object'}, 'description': 'Tools/functions the model may call; requires `stream=false`.'},
+				'format': {'type': 'string', 'description': "Response format, currently 'json' is supported", 'enum': ['json']},
+				'options': {'type': 'object', 'description': 'Model runtime options (temperature, seed, etc.)'},
+				'stream': {'type': 'boolean', 'description': 'If false, returns a single final response object instead of a stream.'},
+				'keep_alive': {'type': 'integer', 'description': 'Seconds to keep model loaded in memory (0 to unload).'},
+			},
+			'required': ['model', 'messages']
+		}
+	},
+	responses={
+		200: {
+			'description': 'Streaming series of partial response objects (or single final object when `stream=false`).',
+			'type': 'object',
+			'properties': {
+				'model': {'type': 'string'},
+				'created_at': {'type': 'string'},
+				'message': {
+					'type': 'object',
+					'properties': {
+						'role': {'type': 'string'},
+						'content': {'type': 'string'},
+						'images': {'type': ['array', 'null'], 'items': {'type': 'string'}},
+						'tool_calls': {'type': ['array', 'null'], 'items': {'type': 'object'}},
+					}
+				},
+				'done': {'type': 'boolean'},
+				'done_reason': {'type': 'string'},
+				'total_duration': {'type': 'integer'},
+				'load_duration': {'type': 'integer'},
+				'prompt_eval_count': {'type': 'integer'},
+				'prompt_eval_duration': {'type': 'integer'},
+				'eval_count': {'type': 'integer'},
+				'eval_duration': {'type': 'integer'},
+			}
+		},
+		400: {'type': 'object', 'properties': {'error': {'type': 'string'}}},
+		404: {'type': 'object', 'properties': {'error': {'type': 'string'}}},
+		502: {'type': 'object', 'properties': {'error': {'type': 'string'}}},
+		503: {'type': 'object', 'properties': {'error': {'type': 'string'}}},
+	},
+	description=(
+		"Generate the next message in a chat using the provided `model`. This endpoint streams partial "
+		"responses by default; set `stream=false` to receive a single final JSON object. The `messages` "
+		"array holds message objects with `role`, `content`, optional `images` (base64), and optional "
+		"`tool_calls`. Providing `tools` requires `stream=false` (tools are executed synchronously). "
+		"Advanced parameters: `format` (currently 'json'), `options` (model runtime parameters), "
+		"and `keep_alive` (seconds, 0 to unload)."
+	)
+)
 @require_POST
 async def proxy_chat(request):
 	"""Proxy endpoint compatible with Ollama's `/api/chat`.
@@ -283,6 +461,29 @@ async def proxy_chat(request):
 
 
 
+@extend_schema(
+	tags=['Proxy'],
+	responses={
+		200: {
+			'type': 'object',
+			'properties': {
+				'models': {
+					'type': 'array',
+					'items': {
+						'type': 'object',
+						'properties': {
+							'name': {'type': 'string'},
+							'modified_at': {'type': 'string'},
+							'size': {'type': 'integer'}
+						}
+					}
+				}
+			}
+		},
+		400: {'type': 'object', 'properties': {'error': {'type': 'string'}}},
+		503: {'type': 'object', 'properties': {'error': {'type': 'string'}}},
+	}
+)
 @require_GET
 async def proxy_tags(request):
 	"""List local models by forwarding GET /api/tags to a selected node."""

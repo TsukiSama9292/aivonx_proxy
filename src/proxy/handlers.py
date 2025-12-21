@@ -4,13 +4,34 @@ from typing import Optional
 from django.http import JsonResponse, HttpResponse, StreamingHttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST, require_GET
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
 from django.apps import apps
 from loguru import logger
+from drf_spectacular.utils import extend_schema
 
 from . import streaming as _streaming
 
 
-@require_GET
+@extend_schema(
+    tags=['Proxy'],
+    responses={
+        200: {
+            'type': 'object',
+            'properties': {
+                'active': {'type': 'array', 'items': {'type': 'string'}},
+                'standby': {'type': 'array', 'items': {'type': 'string'}},
+                'node_id_map': {'type': 'object'},
+                'latencies': {'type': 'object'},
+                'active_counts': {'type': 'object'},
+                'models': {'type': 'object'},
+            }
+        },
+        503: {'type': 'object', 'properties': {'error': {'type': 'string'}}},
+        500: {'type': 'object', 'properties': {'error': {'type': 'string'}}},
+    }
+)
+@api_view(['GET'])
 def state(request):
     """Diagnostics: show HA manager and cache state for debugging."""
     mgr = _get_manager()
@@ -71,7 +92,12 @@ def _get_manager():
     return mgr
 
 
-@require_GET
+@extend_schema(
+    tags=['Proxy'],
+    responses={200: {'type': 'string'}, 503: {'type': 'object', 'properties': {'error': {'type': 'string'}}}}
+)
+@api_view(['GET'])
+@permission_classes([AllowAny])
 def health(request):
     mgr = _get_manager()
     if mgr is None:
@@ -97,8 +123,13 @@ def health(request):
     return JsonResponse({"error": "no healthy nodes available"}, status=404)
 
 
+@extend_schema(
+    tags=['Proxy'],
+    request={'application/json': {'type': 'object'}},
+    responses={200: {'type': 'object'}, 400: {'type': 'object'}, 404: {'type': 'object'}, 502: {'type': 'object'}, 503: {'type': 'object'}}
+)
 @csrf_exempt
-@require_POST
+@api_view(['POST'])
 async def proxy_generate(request):
     mgr = _get_manager()
     if mgr is None:
@@ -163,8 +194,77 @@ async def proxy_generate(request):
             pass
 
 
+@extend_schema(
+    tags=['Proxy'],
+    request={
+        'application/json': {
+            'type': 'object',
+            'properties': {
+                'model': {'type': 'string'},
+                'messages': {
+                    'type': 'array',
+                    'items': {
+                        'type': 'object',
+                        'properties': {
+                            'role': {'type': 'string', 'enum': ['system', 'user', 'assistant', 'tool']},
+                            'content': {'type': 'string'},
+                            'images': {'type': 'array', 'items': {'type': 'string'}},
+                            'tool_calls': {'type': 'array', 'items': {'type': 'object'}},
+                        },
+                        'required': ['role', 'content']
+                    }
+                },
+                'tools': {'type': 'array', 'items': {'type': 'object'}, 'description': 'Tools/functions the model may call; requires `stream=false`.'},
+                'format': {'type': 'string', 'description': "Response format, currently 'json' is supported", 'enum': ['json']},
+                'options': {'type': 'object', 'description': 'Model runtime options (temperature, seed, etc.)'},
+                'stream': {'type': 'boolean', 'description': 'If false, returns a single final response object instead of a stream.'},
+                'keep_alive': {'type': 'integer', 'description': 'Seconds to keep model loaded in memory (0 to unload).'},
+            },
+            'required': ['model', 'messages']
+        }
+    },
+    responses={
+        200: {
+            'description': 'Streaming series of partial response objects (or single final object when `stream=false`).',
+            'type': 'object',
+            'properties': {
+                'model': {'type': 'string'},
+                'created_at': {'type': 'string'},
+                'message': {
+                    'type': 'object',
+                    'properties': {
+                        'role': {'type': 'string'},
+                        'content': {'type': 'string'},
+                        'images': {'type': ['array', 'null'], 'items': {'type': 'string'}},
+                        'tool_calls': {'type': ['array', 'null'], 'items': {'type': 'object'}},
+                    }
+                },
+                'done': {'type': 'boolean'},
+                'done_reason': {'type': 'string'},
+                'total_duration': {'type': 'integer'},
+                'load_duration': {'type': 'integer'},
+                'prompt_eval_count': {'type': 'integer'},
+                'prompt_eval_duration': {'type': 'integer'},
+                'eval_count': {'type': 'integer'},
+                'eval_duration': {'type': 'integer'},
+            }
+        },
+        400: {'type': 'object', 'properties': {'error': {'type': 'string'}}},
+        404: {'type': 'object', 'properties': {'error': {'type': 'string'}}},
+        502: {'type': 'object', 'properties': {'error': {'type': 'string'}}},
+        503: {'type': 'object', 'properties': {'error': {'type': 'string'}}},
+    },
+    description=(
+        "Generate the next message in a chat using the provided `model`. This endpoint streams partial "
+        "responses by default; set `stream=false` to receive a single final JSON object. The `messages` "
+        "array holds message objects with `role`, `content`, optional `images` (base64), and optional "
+        "`tool_calls`. Providing `tools` requires `stream=false` (tools are executed synchronously). "
+        "Advanced parameters: `format` (currently 'json'), `options` (model runtime parameters), "
+        "and `keep_alive` (seconds, 0 to unload)."
+    )
+)
 @csrf_exempt
-@require_POST
+@api_view(['POST'])
 async def proxy_chat(request):
     mgr = _get_manager()
     if mgr is None:
@@ -223,8 +323,13 @@ async def proxy_chat(request):
     return StreamingHttpResponse(_stream_and_release(), content_type="application/json")
 
 
+@extend_schema(
+    tags=['Proxy'],
+    request={'application/json': {'type': 'object'}},
+    responses={200: {'type': 'object'}, 400: {'type': 'object'}, 404: {'type': 'object'}, 502: {'type': 'object'}, 503: {'type': 'object'}}
+)
 @csrf_exempt
-@require_POST
+@api_view(['POST'])
 async def proxy_embed(request):
     mgr = _get_manager()
     if mgr is None:
@@ -267,8 +372,13 @@ async def proxy_embed(request):
             pass
 
 
+@extend_schema(
+    tags=['Proxy'],
+    request={'application/json': {'type': 'object'}},
+    responses={200: {'type': 'object'}, 400: {'type': 'object'}, 404: {'type': 'object'}, 502: {'type': 'object'}, 503: {'type': 'object'}}
+)
 @csrf_exempt
-@require_POST
+@api_view(['POST'])
 async def proxy_embeddings(request):
     mgr = _get_manager()
     if mgr is None:
@@ -311,7 +421,11 @@ async def proxy_embeddings(request):
             pass
 
 
-@require_GET
+@extend_schema(
+    tags=['Proxy'],
+    responses={200: {'type': 'object'}, 400: {'type': 'object'}, 503: {'type': 'object'}}
+)
+@api_view(['GET'])
 async def proxy_tags(request):
     mgr = _get_manager()
     if mgr is None:

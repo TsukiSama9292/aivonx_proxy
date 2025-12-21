@@ -16,21 +16,24 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from django.views.generic.base import RedirectView
 from .views import HealthCheckView
+from proxy.handlers import health as proxy_health
+
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/health/', HealthCheckView.as_view(), name='health-check'),
+    path('api/health', HealthCheckView.as_view(), name='health-check'),
     path("api/proxy/", include("proxy.urls")),
-    # Accept requests both with and without trailing slash for compatibility
-    path("api/proxy", include("proxy.urls")),
+    # accept bare /api/proxy without redirect — call proxy health view directly
+    path("api/proxy", proxy_health),
+
     path("api/account/", include("account.urls")),
-    path("api/account", include("account.urls")),
 ]
 
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
 
 urlpatterns += [
-    path('api/schema/', SpectacularAPIView.as_view(), name='schema'), # OpenAPI 3 schema YAML
-    path('swagger/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
-    path('redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
+    path('api/schema', SpectacularAPIView.as_view(), name='schema'), # OpenAPI 3 schema YAML
+    path('swagger', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
+    path('redoc', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
 ]
