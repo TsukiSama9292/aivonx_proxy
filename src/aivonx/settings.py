@@ -14,7 +14,16 @@ from pathlib import Path
 from .utils import _split_env_list, _ensure_http_scheme
 import os
 from dotenv import load_dotenv
-load_dotenv()
+# Load .env from project root (one level above `src`) so env is found
+# whether the process cwd is the workspace root or `src/`.
+try:
+    # BASE_DIR is set below; compute project root relative to this file path
+    _this_file = Path(__file__).resolve()
+    _project_root = _this_file.parent.parent.parent  # workspace root
+    load_dotenv(_project_root / ".env")
+except Exception:
+    # fallback to default loader (cwd or environment)
+    load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
