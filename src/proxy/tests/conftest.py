@@ -6,6 +6,7 @@ from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from rest_framework.test import APIClient
 from proxy.models import node, ProxyConfig
+from asgiref.sync import sync_to_async
 
 User = get_user_model()
 
@@ -41,7 +42,7 @@ class ProxyTestMixin:
     """Mixin providing common test data for proxy tests."""
 
     def create_sample_node(self):
-        """Create a sample node for testing."""
+        """Create a sample node for testing (sync version)."""
         return node.objects.create(
             name="test-node-1",
             address="192.168.0.54",
@@ -50,8 +51,18 @@ class ProxyTestMixin:
             available_models=["llama2:7b", "codellama:13b"]
         )
 
+    async def acreate_sample_node(self):
+        """Create a sample node for testing (async version)."""
+        return await sync_to_async(node.objects.create)(
+            name="test-node-1",
+            address="192.168.0.54",
+            port=11434,
+            active=True,
+            available_models=["llama2:7b", "codellama:13b"]
+        )
+
     def create_sample_nodes(self, count=3):
-        """Create multiple sample nodes for testing."""
+        """Create multiple sample nodes for testing (sync version)."""
         nodes = []
         for i in range(count):
             n = node.objects.create(
@@ -65,7 +76,7 @@ class ProxyTestMixin:
         return nodes
 
     def create_inactive_node(self):
-        """Create an inactive node for testing."""
+        """Create an inactive node for testing (sync version)."""
         return node.objects.create(
             name="inactive-node",
             address="192.168.0.99",

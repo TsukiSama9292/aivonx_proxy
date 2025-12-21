@@ -11,6 +11,7 @@ from loguru import logger
 from drf_spectacular.utils import extend_schema
 
 from . import streaming as _streaming
+import httpx
 
 
 @extend_schema(
@@ -32,6 +33,7 @@ from . import streaming as _streaming
     }
 )
 @api_view(['GET'])
+@permission_classes([AllowAny])
 def state(request):
     """Diagnostics: show HA manager and cache state for debugging."""
     mgr = _get_manager()
@@ -128,8 +130,8 @@ def health(request):
     request={'application/json': {'type': 'object'}},
     responses={200: {'type': 'object'}, 400: {'type': 'object'}, 404: {'type': 'object'}, 502: {'type': 'object'}, 503: {'type': 'object'}}
 )
-
 @api_view(['POST'])
+@permission_classes([AllowAny])
 async def proxy_generate(request):
     mgr = _get_manager()
     if mgr is None:
@@ -263,8 +265,8 @@ async def proxy_generate(request):
         "and `keep_alive` (seconds, 0 to unload)."
     )
 )
-
 @api_view(['POST'])
+@permission_classes([AllowAny])
 async def proxy_chat(request):
     mgr = _get_manager()
     if mgr is None:
@@ -328,8 +330,8 @@ async def proxy_chat(request):
     request={'application/json': {'type': 'object'}},
     responses={200: {'type': 'object'}, 400: {'type': 'object'}, 404: {'type': 'object'}, 502: {'type': 'object'}, 503: {'type': 'object'}}
 )
-
 @api_view(['POST'])
+@permission_classes([AllowAny])
 async def proxy_embed(request):
     mgr = _get_manager()
     if mgr is None:
@@ -377,8 +379,8 @@ async def proxy_embed(request):
     request={'application/json': {'type': 'object'}},
     responses={200: {'type': 'object'}, 400: {'type': 'object'}, 404: {'type': 'object'}, 502: {'type': 'object'}, 503: {'type': 'object'}}
 )
-
 @api_view(['POST'])
+@permission_classes([AllowAny])
 async def proxy_embeddings(request):
     mgr = _get_manager()
     if mgr is None:
@@ -426,6 +428,7 @@ async def proxy_embeddings(request):
     responses={200: {'type': 'object'}, 400: {'type': 'object'}, 503: {'type': 'object'}}
 )
 @api_view(['GET'])
+@permission_classes([AllowAny])
 async def proxy_tags(request):
     mgr = _get_manager()
     if mgr is None:

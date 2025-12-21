@@ -2,7 +2,7 @@
 Integration tests for complete proxy workflows.
 """
 import json
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, patch, Mock
 from django.test import TransactionTestCase
 from django.core.cache import cache
 from proxy.utils.proxy_manager import HAProxyManager
@@ -164,12 +164,13 @@ class TestModelAwareRouting(TransactionTestCase, ProxyTestMixin):
         }
         
         with patch("proxy.utils.proxy_manager.httpx.AsyncClient") as mock_client:
-            mock_resp = AsyncMock()
+            mock_resp = Mock()
             mock_resp.status_code = 200
             mock_resp.json.return_value = mock_response
-            
+
             mock_client_instance = AsyncMock()
             mock_client_instance.__aenter__.return_value = mock_client_instance
+            # client.get is awaited in code; returning a Mock is fine since awaiting the AsyncMock returns this value
             mock_client_instance.get.return_value = mock_resp
             mock_client.return_value = mock_client_instance
             

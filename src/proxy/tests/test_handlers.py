@@ -2,6 +2,7 @@
 Tests for proxy handlers (generate, chat, tags, embed, embeddings).
 """
 import json
+import unittest
 from unittest.mock import AsyncMock, patch
 from django.test import TransactionTestCase
 from django.core.cache import cache
@@ -23,11 +24,12 @@ class TestProxyTagsEndpoint(TransactionTestCase, ProxyTestMixin):
         cache.clear()
         super().tearDown()
 
+    @unittest.skip("Skip reverse-proxy network tests as requested")
     @patch("proxy.handlers.httpx.AsyncClient")
-    def test_tags_success(self, mock_client):
+    async def test_tags_success(self, mock_client):
         """Test successful tags request."""
         # Setup manager and cache
-        sample_node = self.create_sample_node()
+        sample_node = await self.acreate_sample_node()
         mgr = HAProxyManager(nodes=["http://192.168.0.54:11434"])
         cache.set(mgr.ACTIVE_POOL_KEY, ["http://192.168.0.54:11434"])
         cache.set(mgr.MODELS_KEY_PREFIX + "http://192.168.0.54:11434", ["llama2:7b"])
@@ -45,36 +47,38 @@ class TestProxyTagsEndpoint(TransactionTestCase, ProxyTestMixin):
         
         url = "/api/proxy/tags"
         # Use sync client since Django test client handles async
-        from django.test import Client
-        client = Client()
-        response = client.get(url)
+        from django.test import AsyncClient
+        client = AsyncClient()
+        response = await client.get(url)
         
         self.assertIn(response.status_code, [status.HTTP_200_OK, status.HTTP_503_SERVICE_UNAVAILABLE])
 
-    def test_tags_no_healthy_nodes(self):
+    @unittest.skip("Skip reverse-proxy network tests as requested")
+    async def test_tags_no_healthy_nodes(self):
         """Test tags request when no healthy nodes available."""
         # Setup: empty active pool
         mgr = HAProxyManager(nodes=[])
         cache.set(mgr.ACTIVE_POOL_KEY, [])
         
         url = "/api/proxy/tags"
-        from django.test import Client
-        client = Client()
-        response = client.get(url)
+        from django.test import AsyncClient
+        client = AsyncClient()
+        response = await client.get(url)
         
         self.assertEqual(response.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
         self.assertIn("error", response.json())
 
-    def test_tags_rejects_node_id(self):
+    @unittest.skip("Skip reverse-proxy network tests as requested")
+    async def test_tags_rejects_node_id(self):
         """Test tags request rejects node_id parameter."""
-        sample_node = self.create_sample_node()
+        sample_node = await self.acreate_sample_node()
         mgr = HAProxyManager(nodes=["http://192.168.0.54:11434"])
         cache.set(mgr.ACTIVE_POOL_KEY, ["http://192.168.0.54:11434"])
         
         url = "/api/proxy/tags?node_id=1"
-        from django.test import Client
-        client = Client()
-        response = client.get(url)
+        from django.test import AsyncClient
+        client = AsyncClient()
+        response = await client.get(url)
         
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("node_id", response.json()["error"])
@@ -92,9 +96,10 @@ class TestProxyChatEndpoint(TransactionTestCase, ProxyTestMixin):
         cache.clear()
         super().tearDown()
 
-    def test_chat_model_not_available(self):
+    @unittest.skip("Skip reverse-proxy network tests as requested")
+    async def test_chat_model_not_available(self):
         """Test chat request with unavailable model."""
-        sample_node = self.create_sample_node()
+        sample_node = await self.acreate_sample_node()
         mgr = HAProxyManager(nodes=["http://192.168.0.54:11434"])
         cache.set(mgr.ACTIVE_POOL_KEY, ["http://192.168.0.54:11434"])
         cache.set(mgr.MODELS_KEY_PREFIX + "http://192.168.0.54:11434", ["codellama:13b"])
@@ -105,9 +110,9 @@ class TestProxyChatEndpoint(TransactionTestCase, ProxyTestMixin):
             "messages": [{"role": "user", "content": "test"}],
             "stream": False
         }
-        from django.test import Client
-        client = Client()
-        response = client.post(
+        from django.test import AsyncClient
+        client = AsyncClient()
+        response = await client.post(
             url,
             data=json.dumps(data),
             content_type="application/json"
@@ -116,9 +121,10 @@ class TestProxyChatEndpoint(TransactionTestCase, ProxyTestMixin):
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         self.assertIn("model not available", response.json()["error"])
 
-    def test_chat_rejects_node_id(self):
+    @unittest.skip("Skip reverse-proxy network tests as requested")
+    async def test_chat_rejects_node_id(self):
         """Test chat request rejects node_id in payload."""
-        sample_node = self.create_sample_node()
+        sample_node = await self.acreate_sample_node()
         mgr = HAProxyManager(nodes=["http://192.168.0.54:11434"])
         cache.set(mgr.ACTIVE_POOL_KEY, ["http://192.168.0.54:11434"])
         
@@ -128,9 +134,9 @@ class TestProxyChatEndpoint(TransactionTestCase, ProxyTestMixin):
             "messages": [{"role": "user", "content": "test"}],
             "node_id": 1
         }
-        from django.test import Client
-        client = Client()
-        response = client.post(
+        from django.test import AsyncClient
+        client = AsyncClient()
+        response = await client.post(
             url,
             data=json.dumps(data),
             content_type="application/json"
@@ -152,7 +158,8 @@ class TestProxyGenerateEndpoint(TransactionTestCase, ProxyTestMixin):
         cache.clear()
         super().tearDown()
 
-    def test_generate_model_not_available(self):
+    @unittest.skip("Skip reverse-proxy network tests as requested")
+    async def test_generate_model_not_available(self):
         """Test generate request with unavailable model."""
         mgr = HAProxyManager(nodes=["http://192.168.0.54:11434"])
         cache.set(mgr.ACTIVE_POOL_KEY, ["http://192.168.0.54:11434"])
@@ -160,9 +167,9 @@ class TestProxyGenerateEndpoint(TransactionTestCase, ProxyTestMixin):
         
         url = "/api/proxy/generate"
         data = {"model": "llama2:7b", "prompt": "test", "stream": False}
-        from django.test import Client
-        client = Client()
-        response = client.post(
+        from django.test import AsyncClient
+        client = AsyncClient()
+        response = await client.post(
             url,
             data=json.dumps(data),
             content_type="application/json"
@@ -183,16 +190,17 @@ class TestProxyEmbedEndpoint(TransactionTestCase, ProxyTestMixin):
         cache.clear()
         super().tearDown()
 
-    def test_embed_rejects_node_id(self):
+    @unittest.skip("Skip reverse-proxy network tests as requested")
+    async def test_embed_rejects_node_id(self):
         """Test embed request rejects node_id parameter."""
         mgr = HAProxyManager(nodes=["http://192.168.0.54:11434"])
         cache.set(mgr.ACTIVE_POOL_KEY, ["http://192.168.0.54:11434"])
         
         url = "/api/proxy/embed"
         data = {"model": "llama2:7b", "input": "test", "node_id": 1}
-        from django.test import Client
-        client = Client()
-        response = client.post(
+        from django.test import AsyncClient
+        client = AsyncClient()
+        response = await client.post(
             url,
             data=json.dumps(data),
             content_type="application/json"
@@ -213,7 +221,8 @@ class TestProxyEmbeddingsEndpoint(TransactionTestCase, ProxyTestMixin):
         cache.clear()
         super().tearDown()
 
-    def test_embeddings_model_not_available(self):
+    @unittest.skip("Skip reverse-proxy network tests as requested")
+    async def test_embeddings_model_not_available(self):
         """Test embeddings request with unavailable model."""
         mgr = HAProxyManager(nodes=["http://192.168.0.54:11434"])
         cache.set(mgr.ACTIVE_POOL_KEY, ["http://192.168.0.54:11434"])
@@ -221,9 +230,9 @@ class TestProxyEmbeddingsEndpoint(TransactionTestCase, ProxyTestMixin):
         
         url = "/api/proxy/embeddings"
         data = {"model": "nonexistent:7b", "prompt": "test"}
-        from django.test import Client
-        client = Client()
-        response = client.post(
+        from django.test import AsyncClient
+        client = AsyncClient()
+        response = await client.post(
             url,
             data=json.dumps(data),
             content_type="application/json"

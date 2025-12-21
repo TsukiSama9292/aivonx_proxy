@@ -98,13 +98,17 @@ class NodeViewSet(viewsets.ModelViewSet):
         if candidate and not candidate.startswith('http'):
             candidate = 'http://' + candidate
 
-        active = getattr(instance, 'active', False)
-        # Probe only if address or port changed
-        if (new_addr != orig_addr) or (new_port != orig_port):
-            try:
-                active = self._probe_health(candidate)
-            except Exception:
-                active = False
+        # If client explicitly provided `active` in payload, respect it; otherwise probe when address/port changed
+        if 'active' in serializer.validated_data:
+            active = bool(serializer.validated_data.get('active'))
+        else:
+            active = getattr(instance, 'active', False)
+            # Probe only if address or port changed
+            if (new_addr != orig_addr) or (new_port != orig_port):
+                try:
+                    active = self._probe_health(candidate)
+                except Exception:
+                    active = False
 
         # Save with computed active
         updated = serializer.save(active=active)
