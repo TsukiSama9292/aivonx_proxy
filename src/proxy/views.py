@@ -474,7 +474,18 @@ async def proxy_chat(request):
 						'properties': {
 							'name': {'type': 'string'},
 							'modified_at': {'type': 'string'},
-							'size': {'type': 'integer'}
+							'size': {'type': 'integer'},
+							'digest': {'type': 'string'},
+							'details': {
+								'type': 'object',
+								'properties': {
+									'format': {'type': 'string'},
+									'family': {'type': 'string'},
+									'families': {'type': ['array', 'null'], 'items': {'type': 'string'}},
+									'parameter_size': {'type': 'string'},
+									'quantization_level': {'type': 'string'},
+								},
+							},
 						}
 					}
 				}
@@ -522,31 +533,3 @@ async def proxy_tags(request):
 			mgr.release_node(node_addr)
 		except Exception:
 			pass
-
-
-
-@require_POST
-async def proxy_show(request):
-	"""Forward POST /api/show to a selected node and return result."""
-	app_config = apps.get_app_config("proxy")
-	mgr = getattr(app_config, "proxy_manager", None)
-	if mgr is None:
-		from .utils.proxy_manager import get_global_manager
-
-		mgr = get_global_manager()
-	if mgr is None:
-		return JsonResponse({"error": "no proxy nodes configured"}, status=503)
-
-	try:
-		body_bytes = request.body or b""
-		payload = None
-		if body_bytes:
-			import json as _json
-			try:
-				payload = _json.loads(body_bytes.decode())
-			except Exception:
-				payload = None
-	except Exception:
-		body_bytes = await request.body
-	# /show endpoint has been removed from proxy; respond 404 for safety
-	return JsonResponse({"error": "/show endpoint removed; use /show on node directly"}, status=404)
