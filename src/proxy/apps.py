@@ -1,5 +1,6 @@
 from django.apps import AppConfig
-from loguru import logger
+import logging
+logger = logging.getLogger('proxy')
 
 
 class ProxyConfig(AppConfig):

@@ -7,7 +7,8 @@ from django.views.decorators.http import require_POST, require_GET
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from django.apps import apps
-from loguru import logger
+import logging
+logger = logging.getLogger('proxy')
 from drf_spectacular.utils import extend_schema
 
 from . import streaming as _streaming

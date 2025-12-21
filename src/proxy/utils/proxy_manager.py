@@ -4,7 +4,8 @@ from typing import List, Optional
 
 import httpx
 from apscheduler.schedulers.background import BackgroundScheduler
-from loguru import logger
+import logging
+logger = logging.getLogger('proxy')
 from django.core.cache import cache
 from asgiref.sync import sync_to_async
 
@@ -57,7 +58,7 @@ class HAProxyManager:
             ok = 0 <= getattr(r, 'status_code', 500) < 500
             return ok, latency
         except Exception as e:
-            logger.debug("ping failed for {}: {}", addr, e)
+            logger.debug("ping failed for %s: %s", addr, e)
             return False, float("inf")
 
     async def _refresh_from_db_async(self) -> None:
@@ -87,10 +88,10 @@ class HAProxyManager:
             cache.set(self.ACTIVE_POOL_KEY, list(nodes))
             cache.set(self.NODE_ID_MAP_KEY, id_map)
             cache.set(self.STANDBY_POOL_KEY, [])
-            logger.info("HA manager refreshed nodes from DB (async): {}", nodes)
+            logger.info("HA manager refreshed nodes from DB (async): %s", nodes)
             logger.debug("refresh_from_db_async: set ACTIVE_POOL_KEY=%s, NODE_ID_MAP_KEY=%s", nodes, id_map)
         except Exception as e:
-            logger.debug("refresh_from_db_async failed: {}", e)
+            logger.debug("refresh_from_db_async failed: %s", e)
 
     def refresh_from_db(self) -> None:
         """Load nodes from DB into the manager and cache.
@@ -133,10 +134,10 @@ class HAProxyManager:
             cache.set(self.NODE_ID_MAP_KEY, id_map)
             # clear standby when refreshing from DB
             cache.set(self.STANDBY_POOL_KEY, [])
-            logger.info("HA manager refreshed nodes from DB: {}", nodes)
+            logger.info("HA manager refreshed nodes from DB: %s", nodes)
             logger.debug("refresh_from_db: set ACTIVE_POOL_KEY=%s, NODE_ID_MAP_KEY=%s", nodes, id_map)
         except Exception as e:
-            logger.debug("refresh_from_db skipped (DB may be unavailable): {}", e)
+            logger.debug("refresh_from_db skipped (DB may be unavailable): %s", e)
 
     async def health_check_all(self) -> None:
         active = cache.get(self.ACTIVE_POOL_KEY, [])
@@ -155,7 +156,7 @@ class HAProxyManager:
                         active.append(addr)
                         cache.set(self.ACTIVE_POOL_KEY, active)
                         cache.set(self.STANDBY_POOL_KEY, standby)
-                        logger.info("Node restored -> active: {}", addr)
+                        logger.info("Node restored -> active: %s", addr)
                 else:
                     # ensure it's in active
                     if addr not in active:
@@ -169,7 +170,7 @@ class HAProxyManager:
                         standby.append(addr)
                     cache.set(self.ACTIVE_POOL_KEY, active)
                     cache.set(self.STANDBY_POOL_KEY, standby)
-                    logger.warning("Node moved to standby: {}", addr)
+                    logger.warning("Node moved to standby: %s", addr)
 
     async def refresh_models_all(self) -> None:
         """Query each known node's `/api/tags` and store available model names.
@@ -390,7 +391,7 @@ class HAProxyManager:
 
                 asyncio.run(self.health_check_all())
             except Exception as e:
-                logger.debug("scheduler job error: {}", e)
+                logger.debug("scheduler job error: %s", e)
 
         sched = BackgroundScheduler()
         sched.add_job(_sync_job, "interval", minutes=interval_minutes)
@@ -401,12 +402,12 @@ class HAProxyManager:
 
                 asyncio.run(self.refresh_models_all())
             except Exception as e:
-                logger.debug("models refresh job error: {}", e)
+                logger.debug("models refresh job error: %s", e)
 
         sched.add_job(_sync_models_job, "interval", minutes=1)
         sched.start()
         self._scheduler = sched
-        logger.info("HAProxyManager scheduler started ({} min)", interval_minutes)
+        logger.info("HAProxyManager scheduler started (%d min)", interval_minutes)
 
     async def close(self) -> None:
         await self._client.aclose()
@@ -479,7 +480,7 @@ def init_global_manager_from_db(health_path: str = "/api/health") -> HAProxyMana
             mgr.start_scheduler()
             logger.debug("init_global_manager_from_db: scheduled refresh/health and started scheduler")
         except Exception as e:
-            logger.exception("init_global_manager_from_db: failed to schedule startup jobs: {}", e)
+            logger.exception("init_global_manager_from_db: failed to schedule startup jobs: %s", e)
         _global_manager = mgr
         try:
             # attach to AppConfig so views using AppConfig.proxy_manager see it

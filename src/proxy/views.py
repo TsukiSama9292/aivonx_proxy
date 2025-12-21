@@ -3,7 +3,8 @@ from django.http import JsonResponse, HttpResponse
 from django.views.decorators.http import require_POST, require_GET
 from django.views.decorators.csrf import csrf_exempt
 from django.apps import apps
-from loguru import logger
+import logging
+logger = logging.getLogger('proxy')
 from drf_spectacular.utils import extend_schema
 from django.http import StreamingHttpResponse
 from django.core.cache import cache
