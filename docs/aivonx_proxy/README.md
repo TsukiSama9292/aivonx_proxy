@@ -11,6 +11,7 @@
 | `cli.md` | CLI launcher | Usage for `main.py`, argument precedence and examples. |
 | `deployment.md` | Deployment notes | ASGI recommendations, uvicorn example, cache/backend suggestions. |
 | `troubleshooting.md` | Troubleshooting | Common issues and quick fixes (startup, buffering, cache, tests). |
+| `config.md` | Proxy configuration API | Read and update `ProxyConfig` (strategy, weight). |
 
 Use the files above to dive deeper into specific areas of the proxy implementation. For a quick start, see the repository `README.md` at the project root.
 

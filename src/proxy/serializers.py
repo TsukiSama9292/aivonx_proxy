@@ -32,4 +32,14 @@ class NodeSerializer(DynamicFieldsModelSerializer):
         read_only_fields = ['id', 'created_at']
 
 
+from .models import ProxyConfig
+
+
+class ProxyConfigSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProxyConfig
+        fields = ['id', 'strategy', 'weight', 'updated_at']
+        read_only_fields = ['id', 'updated_at']
+
+
 # Node groups were removed — no serializer needed

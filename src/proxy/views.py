@@ -7,6 +7,12 @@ from loguru import logger
 from drf_spectacular.utils import extend_schema
 from django.http import StreamingHttpResponse
 from django.core.cache import cache
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from rest_framework import status
+from .serializers import ProxyConfigSerializer
+from .models import ProxyConfig
 
 
 def _get_strategy_from_config(payload, mgr):
@@ -32,6 +38,35 @@ def _select_node_for_model(mgr, model_name, strategy=None):
 		return mgr.choose_node(model_name=model_name, strategy=strategy)
 	except Exception:
 		return None
+
+
+@extend_schema(
+	tags=['Proxy'],
+	request=ProxyConfigSerializer,
+	responses={200: ProxyConfigSerializer, 400: {'type': 'object'}}
+)
+@api_view(['GET', 'PUT', 'PATCH'])
+def proxy_config(request):
+	"""Get or update the global `ProxyConfig`.
+
+	GET returns the latest config (creates default if none exists).
+	PUT/PATCH updates fields on the existing config (PATCH = partial).
+	"""
+	# Get or create a single ProxyConfig row
+	cfg = ProxyConfig.objects.order_by('-updated_at').first()
+	if cfg is None:
+		cfg = ProxyConfig.objects.create()
+
+	if request.method == 'GET':
+		serializer = ProxyConfigSerializer(cfg)
+		return Response(serializer.data)
+
+	partial = request.method == 'PATCH'
+	serializer = ProxyConfigSerializer(cfg, data=request.data, partial=partial)
+	if serializer.is_valid():
+		serializer.save()
+		return Response(serializer.data)
+	return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 @extend_schema(
