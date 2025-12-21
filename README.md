@@ -1,28 +1,44 @@
-# Ollama 反向代理
-## 伺服器 API
-1. [CRUD] Ollama 節點
-2. [U] 調整負載平衡/HA策略
-## 反向 API 列表
-1. 健康情況:
-  - 請求路徑: api/proxy
-  - 根據當前是否有節點為可用狀態
-  - 若有可用節點
-    - 回傳狀態200、字串 Ollama is running
-  - 若沒有可用節點
-    - 回傳狀態404
-2. 列出模型 API
-  - 請求路徑: api/proxy/tags
-  - 基於所有節點的可用模型回傳
-3. Chat API, Generate API, Embed API, Embeddings API
-  - 請求路徑: api/proxy/chat, api/proxy/generate, api/proxy/embed, api/proxy/embeddings
-  - 需要節點有該可用模型
-  - 執行反向代理策略
-## 負載平衡策略
-- 策略 1 : 自動依照當前活躍任務平均 ( 可調權重 )
-- 策略 2 : 自動依照網路延遲分配
-## HA 策略
-1. 伺服器自動請求 Ollama 健康情況 API 檢查狀態
-2. 處於離線狀態就移動到待機池
-   - 每 1 分鐘再次請求一次，若為健康再移動回請求池
-## 需要可慮
-1. Ollama 有些不需要反向代理或是需要另外處理，需要直接請求，可以寫在 utils/ollama.py
+# aivonx_proxy — Ollama Reverse Proxy
+
+Lightweight reverse-proxy and HA manager for Ollama model-serving nodes.
+
+Purpose
+- Provide a unified API under `/api/proxy/` that forwards requests to one
+  or more Ollama nodes, selecting the best node automatically based on
+  configured HA/load-balancing strategies.
+- Make endpoints model-aware (only route requests to nodes exposing the
+  requested model) and support streaming responses for real-time proxies.
+
+Core features
+- CRUD management for Ollama nodes (`/api/proxy/nodes`)
+- Health endpoint: `GET /api/proxy/` — returns 200 when any node is available
+- Model discovery: `GET /api/proxy/tags` — aggregates models from nodes
+- Proxy endpoints: `POST /api/proxy/chat`, `/generate`, `/embed`, `/embeddings`
+  that forward requests to appropriate nodes and support streaming
+- HA/Load strategies: `least_active` (default) and `lowest_latency`
+- Periodic background tasks: health checks and model refresh (default 1m)
+
+Quick start
+1. Install dependencies:
+
+   pip install -e .
+
+2. Run migrations and start development server:
+
+   cd src
+   python manage.py migrate
+   uvicorn aivonx.asgi:application --reload --port 8000
+
+3. Run tests:
+
+   cd src
+   python manage.py test proxy.tests
+
+Notes
+- Streaming endpoints behave best under an ASGI server (uvicorn) to avoid
+  WSGI buffering.
+- The project maintains an in-memory cache for manager state. On startup the
+  manager populates state from the database and schedules periodic refreshes.
+
+See `docs/aivonx_proxy/` for architecture, API reference, testing and
+deployment instructions.
