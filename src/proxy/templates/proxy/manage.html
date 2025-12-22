@@ -38,6 +38,8 @@
           <td>
             <button class="details-node-btn" data-id="{{ n.id }}">Details</button>
             &nbsp;
+            <button class="pull-node-btn" data-id="{{ n.id }}" data-name="{{ n.name }}">Pull</button>
+            &nbsp;
             <button class="edit-node-btn" data-id="{{ n.id }}" data-name="{{ n.name }}" data-address="{{ n.address }}" data-port="{{ n.port }}">Update</button>
             &nbsp;
             <form method="post" style="display:inline">
@@ -104,6 +106,31 @@
       <h3 id="details-modal-title">Node Details</h3>
       <div id="details-content">
         <div class="details-loading">Loading...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pull Model Modal -->
+  <div id="pull-modal" class="modal" aria-hidden="true" style="display:none">
+    <div class="modal-content modal-content-wide">
+      <button id="pull-modal-close" class="modal-close">×</button>
+      <h3 id="pull-modal-title">Pull Model</h3>
+      <div id="pull-modal-body">
+        <div id="pull-node-info" class="pull-node-info">
+          <div class="pull-info-loading">Loading node information...</div>
+        </div>
+        <div class="form-row">
+          <label for="pull-model-input">Model Name</label>
+          <input id="pull-model-input" type="text" list="model-suggestions" placeholder="Enter or select model name" required />
+          <datalist id="model-suggestions">
+            <option value="gpt-oss:20b">gpt-oss:20b</option>
+            <option value="embeddinggemma:300m">embeddinggemma:300m</option>
+          </datalist>
+        </div>
+        <div id="pull-status" class="pull-status" style="display:none"></div>
+        <div class="form-row">
+          <button id="pull-submit" class="pull-submit-btn">Pull Model</button>
+        </div>
       </div>
     </div>
   </div>
@@ -249,6 +276,149 @@
 
   detailsModalClose.addEventListener('click', closeDetailsModal);
   window.addEventListener('click', (e) => { if (e.target === detailsModal) closeDetailsModal(); });
+
+  // Pull Model Modal handling
+  const pullModal = document.getElementById('pull-modal');
+  const pullModalClose = document.getElementById('pull-modal-close');
+  const pullModalTitle = document.getElementById('pull-modal-title');
+  const pullModelInput = document.getElementById('pull-model-input');
+  const pullSubmitBtn = document.getElementById('pull-submit');
+  const pullStatus = document.getElementById('pull-status');
+  const pullNodeInfo = document.getElementById('pull-node-info');
+  let currentPullNodeId = null;
+  let currentPullNodeName = null;
+
+  async function fetchNodeInfo(nodeId) {
+    try {
+      const res = await fetch(`/api/proxy/active-requests?node_id=${nodeId}`, {credentials: 'same-origin'});
+      if (!res.ok) { throw new Error('status ' + res.status); }
+      const data = await res.json();
+      return data.nodes && data.nodes.length > 0 ? data.nodes[0] : null;
+    } catch (e) {
+      console.error('fetchNodeInfo error', e);
+      return null;
+    }
+  }
+
+  function renderPullNodeInfo(nodeData) {
+    if (!nodeData) {
+      pullNodeInfo.innerHTML = '<div class="pull-info-error">Failed to load node information</div>';
+      return;
+    }
+
+    const modelsCount = nodeData.models ? nodeData.models.length : 0;
+    const modelsHtml = nodeData.models && nodeData.models.length > 0
+      ? nodeData.models.map(m => `<li>${m}</li>`).join('')
+      : '<li style="color:#999">No models installed</li>';
+
+    pullNodeInfo.innerHTML = `
+      <div class="pull-info-section">
+        <div class="pull-info-header">
+          <strong>Current Models on ${nodeData.name} (${modelsCount})</strong>
+        </div>
+        <ul class="pull-models-list">${modelsHtml}</ul>
+      </div>
+    `;
+  }
+
+  function openPullModal(nodeId, nodeName) {
+    currentPullNodeId = nodeId;
+    currentPullNodeName = nodeName;
+    pullModal.style.display = 'flex';
+    pullModal.setAttribute('aria-hidden', 'false');
+    pullModalTitle.textContent = `Pull Model to ${nodeName}`;
+    pullModelInput.value = '';
+    pullStatus.style.display = 'none';
+    pullStatus.textContent = '';
+    pullSubmitBtn.disabled = false;
+    
+    // Load node information
+    pullNodeInfo.innerHTML = '<div class="pull-info-loading">Loading node information...</div>';
+    fetchNodeInfo(nodeId).then(data => {
+      renderPullNodeInfo(data);
+    });
+  }
+
+  function closePullModal() {
+    pullModal.style.display = 'none';
+    pullModal.setAttribute('aria-hidden', 'true');
+    currentPullNodeId = null;
+    currentPullNodeName = null;
+  }
+
+  async function pullModelToNode() {
+    const modelName = pullModelInput.value.trim();
+    if (!modelName) {
+      pullStatus.style.display = 'block';
+      pullStatus.className = 'pull-status pull-error';
+      pullStatus.textContent = 'Please enter a model name';
+      return;
+    }
+
+    pullSubmitBtn.disabled = true;
+    pullStatus.style.display = 'block';
+    pullStatus.className = 'pull-status pull-loading';
+    pullStatus.textContent = 'Pulling model... This may take a few minutes.';
+
+    try {
+      const response = await fetch('/api/proxy/pull', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+          model: modelName,
+          node_id: currentPullNodeId
+        })
+      });
+
+      const data = await response.json();
+      
+      if (response.ok && data.results && data.results.length > 0) {
+        const result = data.results[0];
+        if (result.status === 'success') {
+          pullStatus.className = 'pull-status pull-success';
+          pullStatus.textContent = `✓ ${result.message}`;
+          setTimeout(() => {
+            closePullModal();
+          }, 2000);
+        } else {
+          pullStatus.className = 'pull-status pull-error';
+          pullStatus.textContent = `✗ ${result.message}`;
+          pullSubmitBtn.disabled = false;
+        }
+      } else {
+        pullStatus.className = 'pull-status pull-error';
+        pullStatus.textContent = `✗ ${data.error || 'Failed to pull model'}`;
+        pullSubmitBtn.disabled = false;
+      }
+    } catch (error) {
+      pullStatus.className = 'pull-status pull-error';
+      pullStatus.textContent = `✗ Error: ${error.message}`;
+      pullSubmitBtn.disabled = false;
+    }
+  }
+
+  document.querySelectorAll('.pull-node-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const id = btn.getAttribute('data-id');
+      const name = btn.getAttribute('data-name');
+      openPullModal(id, name);
+    });
+  });
+
+  pullSubmitBtn.addEventListener('click', pullModelToNode);
+  pullModalClose.addEventListener('click', closePullModal);
+  window.addEventListener('click', (e) => { if (e.target === pullModal) closePullModal(); });
+  
+  // Allow Enter key to submit
+  pullModelInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter' && !pullSubmitBtn.disabled) {
+      pullModelToNode();
+    }
+  });
   </script>
 
 <script>

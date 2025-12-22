@@ -274,3 +274,164 @@ def active_requests(request):
 			"error": "failed to get active requests",
 			"details": str(e)
 		}, status=500)
+
+
+@extend_schema(
+	tags=['Proxy'],
+	request={
+		'application/json': {
+			'type': 'object',
+			'properties': {
+				'model': {'type': 'string', 'description': 'Name of the model to pull', 'required': True},
+				'node_id': {'type': 'integer', 'description': 'Specific node ID to pull on (optional). If not specified, pulls on all active nodes.'},
+				'insecure': {'type': 'boolean', 'description': 'Allow insecure connections (optional)'},
+				'stream': {'type': 'boolean', 'description': 'Stream response (optional, default false)'},
+			},
+			'required': ['model']
+		}
+	},
+	responses={
+		200: {
+			'type': 'object',
+			'properties': {
+				'results': {
+					'type': 'array',
+					'items': {
+						'type': 'object',
+						'properties': {
+							'node_id': {'type': 'integer'},
+							'node_name': {'type': 'string'},
+							'node_address': {'type': 'string'},
+							'status': {'type': 'string'},
+							'message': {'type': 'string'},
+						}
+					}
+				}
+			}
+		},
+		400: {'type': 'object', 'properties': {'error': {'type': 'string'}}},
+		404: {'type': 'object', 'properties': {'error': {'type': 'string'}}},
+		503: {'type': 'object', 'properties': {'error': {'type': 'string'}}}
+	},
+	description='Pull a model to specified node(s). If node_id is provided, pulls only to that node. Otherwise, pulls to all active nodes.'
+)
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def pull_model(request):
+	"""Pull a model to one or all nodes."""
+	mgr = _get_manager()
+	from .models import node as NodeModel
+	import httpx
+	from concurrent.futures import ThreadPoolExecutor, as_completed
+
+	if mgr is None:
+		return JsonResponse({"error": "no proxy manager"}, status=503)
+
+	try:
+		# Parse request body
+		body = request.data if hasattr(request, 'data') else {}
+		model_name = body.get('model')
+		node_id = body.get('node_id')
+		insecure = body.get('insecure', False)
+		stream = body.get('stream', False)
+
+		if not model_name:
+			return JsonResponse({"error": "model name is required"}, status=400)
+
+		# Get target nodes
+		if node_id:
+			try:
+				node_id = int(node_id)
+				nodes_qs = NodeModel.objects.filter(id=node_id, active=True)
+				if not nodes_qs.exists():
+					return JsonResponse({"error": f"node not found: {node_id}"}, status=404)
+			except ValueError:
+				return JsonResponse({"error": "invalid node_id: must be an integer"}, status=400)
+		else:
+			nodes_qs = NodeModel.objects.filter(active=True)
+
+		if not nodes_qs.exists():
+			return JsonResponse({"error": "no active nodes available"}, status=404)
+
+		# Function to pull model to a single node
+		def pull_to_node(node):
+			addr = (node.address or "").strip()
+			if node.port and ":" not in addr.split("/")[-1]:
+				addr = f"{addr}:{node.port}"
+			if addr and not addr.startswith("http"):
+				addr = "http://" + addr
+
+			url = addr.rstrip("/") + "/api/pull"
+			payload = {"model": model_name, "stream": stream}
+			if insecure:
+				payload["insecure"] = True
+
+			try:
+				with httpx.Client(timeout=300.0) as client:
+					response = client.post(url, json=payload)
+				
+				if response.status_code == 200:
+					if stream:
+						return {
+							"node_id": node.id,
+							"node_name": node.name,
+							"node_address": addr,
+							"status": "success",
+							"message": "Model pull initiated"
+						}
+					else:
+						result = response.json()
+						return {
+							"node_id": node.id,
+							"node_name": node.name,
+							"node_address": addr,
+							"status": result.get("status", "success"),
+							"message": "Model pulled successfully"
+						}
+				else:
+					return {
+						"node_id": node.id,
+						"node_name": node.name,
+						"node_address": addr,
+						"status": "error",
+						"message": f"HTTP {response.status_code}: {response.text[:200]}"
+					}
+			except Exception as e:
+				return {
+					"node_id": node.id,
+					"node_name": node.name,
+					"node_address": addr,
+					"status": "error",
+					"message": str(e)
+				}
+
+		# Execute pulls in parallel using ThreadPoolExecutor
+		results = []
+		with ThreadPoolExecutor(max_workers=5) as executor:
+			future_to_node = {executor.submit(pull_to_node, node): node for node in nodes_qs}
+			for future in as_completed(future_to_node):
+				try:
+					result = future.result()
+					results.append(result)
+				except Exception as e:
+					node = future_to_node[future]
+					results.append({
+						"node_id": node.id,
+						"node_name": node.name,
+						"node_address": "unknown",
+						"status": "error",
+						"message": str(e)
+					})
+
+		return JsonResponse({
+			"results": results,
+			"model": model_name,
+			"total_nodes": len(results)
+		})
+
+	except Exception as e:
+		logger.exception("failed to pull model")
+		return JsonResponse({
+			"error": "failed to pull model",
+			"details": str(e)
+		}, status=500)
