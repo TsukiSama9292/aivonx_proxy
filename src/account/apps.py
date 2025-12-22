@@ -8,10 +8,10 @@ class AccountConfig(AppConfig):
     name = 'account'
     
     def ready(self):
-        # 先讀取 .env（不會存取資料庫）
+        # Load environment variables from .env file
         load_dotenv()
 
-        # 延後建立 root 使用者到 migrations 完成後，以避免在應用啟動時存取 DB
+        # Create root user after migrations
         from django.db.models.signals import post_migrate
         from django.contrib.auth import get_user_model
 
@@ -21,9 +21,8 @@ class AccountConfig(AppConfig):
                 if not User.objects.filter(username="root").exists():
                     root_password = os.getenv("ROOT_PASSWORD", "changeme")
                     User.objects.create_user(username="root", password=root_password)
-                    print("User root created.")
             except OperationalError:
-                # 如果 DB 尚未準備好，忽略並在下一次 migrations 後再試
+                # Database might not be ready yet
                 pass
 
         post_migrate.connect(create_root_user, dispatch_uid="account.create_root_user")

@@ -9,7 +9,7 @@ https://docs.djangoproject.com/en/5.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
-
+import sys
 from pathlib import Path
 from .utils import _split_env_list, _ensure_http_scheme
 import os
@@ -181,7 +181,7 @@ CACHES = {
     }
 }
 
-# 日誌設定
+# Logging Configuration
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -268,3 +268,19 @@ LOGGING = {
         'level': 'INFO',
     },
 }
+
+# Logging Configuration For Test
+if "test" in sys.argv:
+    LOGGING = {
+        "version": 1,
+        "disable_existing_loggers": True,
+        "handlers": {
+            "console": {
+                "class": "logging.StreamHandler",
+            },
+        },
+        "root": {
+            "handlers": ["console"],
+            "level": "ERROR",  # ERROR / CRITICAL
+        },
+    }
