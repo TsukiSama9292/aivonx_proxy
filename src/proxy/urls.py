@@ -20,7 +20,6 @@ router = DefaultRouter(trailing_slash='')
 router.register(r'nodes', NodeViewSet)
 
 urlpatterns = [
-    path('', health, name='proxy_health'),
     path('', include(router.urls)),
     path('generate', proxy_generate, name='proxy_generate'),
     path('chat', proxy_chat, name='proxy_chat'),

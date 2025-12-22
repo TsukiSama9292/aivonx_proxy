@@ -13,9 +13,5 @@ RUN mkdir -p /app
 COPY . /app/
 WORKDIR /app
 RUN uv sync
-
-# Ensure the application package in `/app/src` is importable
-ENV PYTHONPATH=/app/src
-
 ENV PORT=8000
 ENV UVICORN_WORKERS=1
