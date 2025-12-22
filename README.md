@@ -11,6 +11,15 @@ Lightweight reverse-proxy and HA manager for Ollama model-serving nodes.
   />
 </p>
 
+<p align="center">
+  <a href="https://github.com/TsukiSama9292/aivonx_proxy/commits/main">
+    <img src="https://img.shields.io/github/last-commit/TsukiSama9292/aivonx_proxy" alt="Last Commit">
+  </a>
+  <a href="https://github.com/TsukiSama9292/aivonx_proxy/actions/workflows/tests.yml">
+    <img src="https://github.com/TsukiSama9292/aivonx_proxy/actions/workflows/tests.yml/badge.svg" alt="CI Status">
+  </a>
+</p>
+
 ## Purpose
 
 - Provide a unified API under `/api/proxy/` that forwards requests to one or
