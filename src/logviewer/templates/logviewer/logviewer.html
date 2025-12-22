@@ -1,0 +1,110 @@
+{% extends 'proxy/base.html' %}
+{% load static %}
+
+{% block title %}Logs Viewer{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'logviewer/style.css' %}">
+<section class="card">
+  <h2>Logs Viewer</h2>
+  <form id="logs-search" onsubmit="return false;" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end">
+    <div style="flex:1;min-width:180px">
+      <label for="q-query">Query</label>
+      <input id="q-query" name="query" placeholder="message contains...">
+    </div>
+    <div style="width:140px">
+      <label for="q-level">Level</label>
+      <select id="q-level" name="level">
+        <option value="">Any</option>
+        <option>DEBUG</option>
+        <option>INFO</option>
+        <option>WARNING</option>
+        <option>ERROR</option>
+        <option>CRITICAL</option>
+      </select>
+    </div>
+    <div style="width:140px">
+      <label for="q-source">Source</label>
+      <select id="q-source" name="source">
+        <option value="django">django</option>
+        <option value="proxy">proxy</option>
+      </select>
+    </div>
+    <div style="width:120px">
+      <label for="q-limit">Limit</label>
+      <input id="q-limit" name="limit" type="number" value="100" min="1" max="1000">
+    </div>
+    <div>
+      <button id="search-btn">Search</button>
+    </div>
+  </form>
+  <div id="logs-results" style="margin-top:12px">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div>Showing <span id="display-range">0-0</span> of <strong id="display-count">0</strong></div>
+      <div>
+        <button id="prev-btn">Prev</button>
+        <button id="next-btn">Next</button>
+      </div>
+    </div>
+    <table id="logs-table" class="nodes" style="width:100%">
+      <thead><tr><th>Num</th><th>Time</th><th>Level</th><th>Logger</th><th>Message</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</section>
+
+<script>
+
+async function fetchLogs(params={}){
+  const qs = new URLSearchParams(params).toString();
+  const res = await fetch('/api/logs/?'+qs, {credentials: 'same-origin'});
+  if(!res.ok){
+    const txt = await res.text();
+    alert('Error: '+res.status+' '+txt);
+    return null;
+  }
+  return await res.json();
+}
+
+function renderRows(items){
+  const tbody = document.querySelector('#logs-table tbody');
+  tbody.innerHTML = '';
+  for(let i=0;i<items.length;i++){
+    const it = items[i];
+    const number = (currentOffset || 0) + i + 1;
+    const tr = document.createElement('tr');
+    const levelText = it.level || '';
+    const levelClass = `level-${(levelText || '').toUpperCase()}`;
+    const levelHtml = `<span class="level-badge ${levelClass}">${levelText}</span>`;
+    tr.innerHTML = `<td>${number}</td><td>${it.timestamp||''}</td><td>${levelHtml}</td><td>${it.logger||''}</td><td style="text-align:left">${(it.message||'').replace(/</g,'&lt;')}</td>`;
+    tbody.appendChild(tr);
+  }
+}
+let currentOffset = 0;
+let currentLimit = parseInt(document.getElementById('q-limit').value || '100', 10);
+
+async function loadPage(offset){
+  const q = document.getElementById('q-query').value.trim();
+  const level = document.getElementById('q-level').value;
+  const source = document.getElementById('q-source').value || 'django';
+  currentLimit = parseInt(document.getElementById('q-limit').value || '100', 10);
+  const data = await fetchLogs({query: q, level: level, limit: currentLimit, offset: offset, source: source});
+  if(!data) return;
+  renderRows(data.results || []);
+  currentOffset = data.offset || offset;
+  const start = data.count ? (currentOffset + 1) : 0;
+  const end = Math.min(currentOffset + currentLimit, data.count || 0);
+  document.getElementById('display-range').textContent = data.count ? `${start}-${end}` : '0-0';
+  document.getElementById('display-count').textContent = data.count || 0;
+}
+
+document.getElementById('search-btn').addEventListener('click', async ()=>{ await loadPage(0); });
+document.getElementById('q-source').addEventListener('change', async ()=>{ await loadPage(0); });
+document.getElementById('prev-btn').addEventListener('click', async ()=>{ const prev = Math.max(0, currentOffset - currentLimit); await loadPage(prev); });
+document.getElementById('next-btn').addEventListener('click', async ()=>{ const next = currentOffset + currentLimit; await loadPage(next); });
+
+// initial load
+(async ()=>{ await loadPage(0); })();
+</script>
+
+{% endblock %}

@@ -63,6 +63,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'proxy',
     'account',
+    'logviewer',
 ]
 
 MIDDLEWARE = [
@@ -143,6 +144,11 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 
+# Path to JSON log file used by the logviewer API
+LOG_JSON_PATH = str(BASE_DIR / 'logs' / 'django.json')
+# Path to proxy JSON log file
+PROXY_LOG_JSON_PATH = str(BASE_DIR / 'logs' / 'proxy.json')
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
@@ -198,6 +204,10 @@ LOGGING = {
             'format': '{levelname} {message}',
             'style': '{',
         },
+        'json': {
+            '()': 'pythonjsonlogger.jsonlogger.JsonFormatter',
+            'fmt': '%(asctime)s %(levelname)s %(name)s %(module)s %(process)d %(thread)d %(message)s'
+        },
     },
     'filters': {
         'require_debug_true': {
@@ -234,16 +244,25 @@ LOGGING = {
         'proxy_file': {
             'level': 'DEBUG',
             'class': 'logging.handlers.RotatingFileHandler',
-            'filename': BASE_DIR / 'logs' / 'proxy.log',
+            'filename': PROXY_LOG_JSON_PATH,
             'maxBytes': 10 * 1024 * 1024,  # 10MB
             'backupCount': 3,
-            'formatter': 'verbose',
+            'formatter': 'json',
+            'encoding': 'utf-8',
+        },
+        'file_json': {
+            'level': 'DEBUG',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': LOG_JSON_PATH,
+            'maxBytes': 10 * 1024 * 1024,  # 10MB
+            'backupCount': 3,
+            'formatter': 'json',
             'encoding': 'utf-8',
         },
     },
     'loggers': {
         'django': {
-            'handlers': ['console', 'file'],
+            'handlers': ['console', 'file_json'],
             'level': 'INFO',
             'propagate': False,
         },
@@ -264,7 +283,7 @@ LOGGING = {
         },
     },
     'root': {
-        'handlers': ['console', 'file'],
+        'handlers': ['console', 'file_json'],
         'level': 'INFO',
     },
 }

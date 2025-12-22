@@ -20,6 +20,7 @@ from django.views.generic.base import RedirectView
 from .views import HealthCheckView
 from proxy.views import health as proxy_health
 from proxy.web import ProxyLoginView, proxy_logout_view, manage as proxy_manage
+from logviewer.web import logs_page as logviewer_logs_page
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -27,10 +28,12 @@ urlpatterns = [
     path("api/proxy/", include("proxy.urls")),
     path("api/proxy", proxy_health),
     path("api/account/", include("account.urls")),
+    path("api/logs/", include("logviewer.urls")),
     # Web UI
     path('', ProxyLoginView.as_view(), name='proxy_ui_login'),
     path('ui/logout', proxy_logout_view, name='proxy_ui_logout'),
     path('ui/manage', proxy_manage, name='proxy_ui_manage'),
+    path('ui/logs', logviewer_logs_page, name='proxy_ui_logs'),
 ]
 
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView

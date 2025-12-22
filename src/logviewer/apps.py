@@ -1,0 +1,7 @@
+from django.apps import AppConfig
+
+
+class LogviewerConfig(AppConfig):
+    default_auto_field = 'django.db.models.BigAutoField'
+    name = 'logviewer'
+    verbose_name = 'Log Viewer'
