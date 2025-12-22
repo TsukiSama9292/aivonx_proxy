@@ -22,7 +22,7 @@ class TestHealthEndpoint(BaseTestCase, ProxyTestMixin):
         mgr = HAProxyManager(nodes=["http://192.168.0.54:11434"])
         cache.set(mgr.ACTIVE_POOL_KEY, ["http://192.168.0.54:11434"])
         
-        url = "/api/proxy/"
+        url = "/api/proxy"
         response = self.client.get(url)
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -34,7 +34,7 @@ class TestHealthEndpoint(BaseTestCase, ProxyTestMixin):
         mgr = HAProxyManager(nodes=[])
         cache.set(mgr.ACTIVE_POOL_KEY, [])
         
-        url = "/api/proxy/"
+        url = "/api/proxy"
         response = self.client.get(url)
         
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
@@ -42,7 +42,7 @@ class TestHealthEndpoint(BaseTestCase, ProxyTestMixin):
 
     def test_health_unauthenticated_access(self):
         """Test health check does not require authentication."""
-        url = "/api/proxy/"
+        url = "/api/proxy"
         response = self.client.get(url)
         
         # Should not return 401 Unauthorized
