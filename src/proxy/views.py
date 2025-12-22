@@ -148,3 +148,129 @@ def proxy_config(request):
 		serializer.save()
 		return Response(serializer.data)
 	return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@extend_schema(
+	tags=['Proxy'],
+	responses={
+		200: {
+			'type': 'object',
+			'properties': {
+				'nodes': {
+					'type': 'array',
+					'items': {
+						'type': 'object',
+						'properties': {
+							'id': {'type': 'integer', 'description': 'Node ID'},
+							'name': {'type': 'string', 'description': 'Node name'},
+							'address': {'type': 'string', 'description': 'Node address'},
+							'active_requests': {'type': 'integer', 'description': 'Number of active requests'},
+							'status': {'type': 'string', 'enum': ['active', 'standby'], 'description': 'Node status'},
+							'latency': {'type': 'number', 'description': 'Last measured latency in seconds'},
+							'models': {'type': 'array', 'items': {'type': 'string'}, 'description': 'Available models'},
+						}
+					}
+				},
+				'total_active_requests': {'type': 'integer', 'description': 'Total active requests across all nodes'}
+			}
+		},
+		404: {'type': 'object', 'properties': {'error': {'type': 'string'}}},
+		503: {'type': 'object', 'properties': {'error': {'type': 'string'}}}
+	},
+	parameters=[
+		{
+			'name': 'node_id',
+			'in': 'query',
+			'description': 'Filter by specific node ID (optional)',
+			'required': False,
+			'schema': {'type': 'integer'}
+		}
+	],
+	description='Get active request counts for all nodes or a specific node. Returns detailed information about each node including active requests, status, latency, and available models.'
+)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def active_requests(request):
+	"""Get active request counts for all nodes or a specific node by ID."""
+	mgr = _get_manager()
+	from django.core.cache import cache
+	from .models import node as NodeModel
+
+	if mgr is None:
+		return JsonResponse({"error": "no proxy manager"}, status=503)
+
+	try:
+		# Get filter parameter
+		filter_node_id = request.GET.get('node_id')
+		if filter_node_id:
+			try:
+				filter_node_id = int(filter_node_id)
+			except ValueError:
+				return JsonResponse({
+					"error": f"invalid node_id: must be an integer"
+				}, status=400)
+		
+		# Get all nodes from pools
+		active_pool = cache.get(mgr.ACTIVE_POOL_KEY, [])
+		standby_pool = cache.get(mgr.STANDBY_POOL_KEY, [])
+		node_id_map = cache.get(mgr.NODE_ID_MAP_KEY, {})
+		
+		# Create reverse mapping: address -> id
+		address_to_id = {addr: int(node_id) for node_id, addr in node_id_map.items()}
+		
+		# Get node details from database
+		if filter_node_id:
+			nodes_qs = NodeModel.objects.filter(id=filter_node_id, active=True)
+			if not nodes_qs.exists():
+				return JsonResponse({
+					"error": f"node not found: {filter_node_id}"
+				}, status=404)
+		else:
+			nodes_qs = NodeModel.objects.filter(active=True)
+		
+		# Collect data for each node
+		nodes_data = []
+		total_active = 0
+		
+		for node in nodes_qs:
+			# Construct address to match cache keys
+			addr = (node.address or "").strip()
+			if node.port and ":" not in addr.split("/")[-1]:
+				addr = f"{addr}:{node.port}"
+			if addr and not addr.startswith("http"):
+				addr = "http://" + addr
+			
+			# Skip if node address not in pools (not managed)
+			if addr not in active_pool and addr not in standby_pool:
+				continue
+			
+			active_count = cache.get(mgr._active_count_key(addr), 0)
+			latency = cache.get(mgr.LATENCY_KEY_PREFIX + addr)
+			models = cache.get(mgr.MODELS_KEY_PREFIX + addr, [])
+			status_str = 'active' if addr in active_pool else 'standby'
+			
+			nodes_data.append({
+				'id': node.id,
+				'name': node.name,
+				'address': addr,
+				'active_requests': active_count,
+				'status': status_str,
+				'latency': latency,
+				'models': models
+			})
+			total_active += active_count
+		
+		# Sort by active requests (descending)
+		nodes_data.sort(key=lambda x: x['active_requests'], reverse=True)
+		
+		return JsonResponse({
+			'nodes': nodes_data,
+			'total_active_requests': total_active
+		})
+		
+	except Exception as e:
+		logger.exception("failed to get active requests")
+		return JsonResponse({
+			"error": "failed to get active requests",
+			"details": str(e)
+		}, status=500)

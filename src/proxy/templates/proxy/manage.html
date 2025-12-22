@@ -36,6 +36,8 @@
           <td>{{ n.port }}</td>
           <td>{{ n.active }}</td>
           <td>
+            <button class="details-node-btn" data-id="{{ n.id }}">Details</button>
+            &nbsp;
             <button class="edit-node-btn" data-id="{{ n.id }}" data-name="{{ n.name }}" data-address="{{ n.address }}" data-port="{{ n.port }}">Update</button>
             &nbsp;
             <form method="post" style="display:inline">
@@ -95,6 +97,17 @@
     </div>
   </div>
 
+  <!-- Node Details Modal -->
+  <div id="details-modal" class="modal" aria-hidden="true" style="display:none">
+    <div class="modal-content modal-content-wide">
+      <button id="details-modal-close" class="modal-close">×</button>
+      <h3 id="details-modal-title">Node Details</h3>
+      <div id="details-content">
+        <div class="details-loading">Loading...</div>
+      </div>
+    </div>
+  </div>
+
   <script>
   // Modal handling for Add / Edit Node
   const modal = document.getElementById('node-modal');
@@ -146,6 +159,96 @@
   openAddBtn.addEventListener('click', () => openModal('add', {}));
   closeBtn.addEventListener('click', closeModal);
   window.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+
+  // Details Modal handling
+  const detailsModal = document.getElementById('details-modal');
+  const detailsModalClose = document.getElementById('details-modal-close');
+  const detailsContent = document.getElementById('details-content');
+
+  async function fetchNodeDetails(nodeId) {
+    try {
+      const res = await fetch(`/api/proxy/active-requests?node_id=${nodeId}`, {credentials: 'same-origin'});
+      if (!res.ok) { throw new Error('status ' + res.status); }
+      const data = await res.json();
+      return data.nodes && data.nodes.length > 0 ? data.nodes[0] : null;
+    } catch (e) {
+      console.error('fetchNodeDetails error', e);
+      return null;
+    }
+  }
+
+  function renderNodeDetails(nodeData) {
+    if (!nodeData) {
+      detailsContent.innerHTML = '<div class="details-error">Failed to load node details</div>';
+      return;
+    }
+
+    const latencyText = nodeData.latency !== null && nodeData.latency !== undefined 
+      ? (nodeData.latency * 1000).toFixed(2) + ' ms' 
+      : 'N/A';
+
+    const modelsHtml = nodeData.models && nodeData.models.length > 0
+      ? nodeData.models.map(m => `<li>${m}</li>`).join('')
+      : '<li>No models available</li>';
+
+    detailsContent.innerHTML = `
+      <div class="details-section">
+        <div class="details-row">
+          <span class="details-label">ID:</span>
+          <span class="details-value">${nodeData.id}</span>
+        </div>
+        <div class="details-row">
+          <span class="details-label">Name:</span>
+          <span class="details-value">${nodeData.name}</span>
+        </div>
+        <div class="details-row">
+          <span class="details-label">Address:</span>
+          <span class="details-value">${nodeData.address}</span>
+        </div>
+        <div class="details-row">
+          <span class="details-label">Status:</span>
+          <span class="details-value status-${nodeData.status}">${nodeData.status.toUpperCase()}</span>
+        </div>
+        <div class="details-row">
+          <span class="details-label">Active Requests:</span>
+          <span class="details-value">${nodeData.active_requests}</span>
+        </div>
+        <div class="details-row">
+          <span class="details-label">Latency:</span>
+          <span class="details-value">${latencyText}</span>
+        </div>
+        <div class="details-row">
+          <span class="details-label">Available Models (${nodeData.models ? nodeData.models.length : 0}):</span>
+        </div>
+        <ul class="details-models">${modelsHtml}</ul>
+      </div>
+    `;
+  }
+
+  function openDetailsModal(nodeId) {
+    detailsModal.style.display = 'flex';
+    detailsModal.setAttribute('aria-hidden', 'false');
+    detailsContent.innerHTML = '<div class="details-loading">Loading...</div>';
+    
+    fetchNodeDetails(nodeId).then(data => {
+      renderNodeDetails(data);
+    });
+  }
+
+  function closeDetailsModal() {
+    detailsModal.style.display = 'none';
+    detailsModal.setAttribute('aria-hidden', 'true');
+  }
+
+  document.querySelectorAll('.details-node-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const id = btn.getAttribute('data-id');
+      openDetailsModal(id);
+    });
+  });
+
+  detailsModalClose.addEventListener('click', closeDetailsModal);
+  window.addEventListener('click', (e) => { if (e.target === detailsModal) closeDetailsModal(); });
   </script>
 
 <script>

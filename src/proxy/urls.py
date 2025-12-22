@@ -5,6 +5,7 @@ from .viewsets import (
 )
 from .views import (
     state,
+    active_requests,
 )
 from .views_proxy import (
     proxy_generate,
@@ -25,6 +26,7 @@ urlpatterns = [
     path('config', proxy_config, name='proxy_config'),
     path('tags', proxy_tags, name='proxy_tags'),
     path('state', state, name='proxy_state'),
+    path('active-requests', active_requests, name='active_requests'),
     path('embed', proxy_embed, name='proxy_embed'),
     path('embeddings', proxy_embeddings, name='proxy_embeddings'),
 ]
