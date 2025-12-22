@@ -75,7 +75,9 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'corsheaders.middleware.CorsMiddleware', # Added for CORS
+    'whitenoise.middleware.WhiteNoiseMiddleware', # Serve static files efficiently
 ]
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 ROOT_URLCONF = 'aivonx.urls'
 
@@ -142,7 +144,12 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = 'static/'
+# Use a leading slash so URLs resolve correctly (e.g. /static/...)
+STATIC_URL = '/static/'
+
+# Directory where `collectstatic` will gather files for production
+# Required when using the staticfiles app and running `collectstatic`.
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # Path to JSON log file used by the logviewer API
 LOG_JSON_PATH = str(BASE_DIR / 'logs' / 'django.json')

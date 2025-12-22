@@ -3,8 +3,9 @@
 {% block title %}Manage Proxy{% endblock %}
 
 {% block content %}
+<!-- 1. Proxy Configuration Section -->
 <section class="card">
-  <h2>Proxy Configuration</h2>
+  <h2>⚙️ Proxy Configuration</h2>
   <form method="post">
     {% csrf_token %}
     <input type="hidden" name="action" value="update_config">
@@ -13,17 +14,61 @@
       {{ config_form.strategy }}
     </div>
     <div class="form-row">
-    </div>
-    <div class="form-row">
       <button type="submit">Save Config</button>
     </div>
   </form>
 </section>
 
+<!-- 2. Overall Dashboard Section -->
 <section class="card">
-  <h2>Nodes</h2>
+  <h2>📊 Overall Dashboard</h2>
+  
+  <div class="dashboard-grid">
+    <!-- Available Models Card -->
+    <div class="dashboard-card">
+      <div class="dashboard-card-header">
+        <h3>Available Models</h3>
+        <button id="refresh-models" class="icon-btn">🔄</button>
+      </div>
+      <div class="model-count-display">
+        <div class="big-number" id="model-count">0</div>
+        <div class="count-label">Total Models</div>
+      </div>
+      <div class="models-scroll-container">
+        <div id="models-list" class="models-list">
+          <div class="loading-text">Loading...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pull to All Nodes Card -->
+    <div class="dashboard-card">
+      <div class="dashboard-card-header">
+        <h3>Pull Model to All Nodes</h3>
+      </div>
+      <div class="pull-all-form">
+        <div class="form-row">
+          <label for="pull-all-model-input">Model Name</label>
+          <input id="pull-all-model-input" type="text" list="model-suggestions-all" placeholder="Enter or select model name" />
+          <datalist id="model-suggestions-all">
+            <option value="gpt-oss:20b">gpt-oss:20b</option>
+            <option value="embeddinggemma:300m">embeddinggemma:300m</option>
+          </datalist>
+        </div>
+        <button id="show-nodes-preview" class="btn-secondary">Preview Nodes Status</button>
+        <div id="nodes-preview" class="nodes-preview" style="display:none"></div>
+        <button id="pull-all-submit" class="btn-primary">Pull to All Active Nodes</button>
+        <div id="pull-all-status" class="pull-status" style="display:none"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 3. Nodes Dashboard Section -->
+<section class="card">
+  <h2>🖥️ Nodes Dashboard</h2>
   <div class="nodes-header">
-    <button id="open-add-node" class="add-node-btn">Add Node</button>
+    <button id="open-add-node" class="add-node-btn">+ Add Node</button>
   </div>
   <table class="nodes">
     <thead><tr><th>ID</th><th>Name</th><th>Address</th><th>Port</th><th>Active</th><th>Actions</th></tr></thead>
@@ -53,20 +98,6 @@
       {% empty %}
         <tr><td colspan="6">No nodes configured</td></tr>
       {% endfor %}
-    </tbody>
-    <!-- Hidden Add Node form will be shown in modal -->
-  
-</section>
-
-<section class="card">
-  <h2>Available Models (aggregated)</h2>
-  <div style="margin-bottom:8px">
-    <button id="refresh-models">Refresh Models</button>
-  </div>
-  <table id="models-table" class="nodes" style="width:100%">
-    <thead><tr><th>Model</th></tr></thead>
-    <tbody>
-      <tr><td>Loading...</td></tr>
     </tbody>
   </table>
 </section>
@@ -422,12 +453,12 @@
   </script>
 
 <script>
+// Overall Dashboard - Models Display
 async function fetchModels(){
   try{
     const res = await fetch('/api/proxy/tags', {credentials: 'same-origin'});
     if(!res.ok){ throw new Error('status '+res.status); }
     const data = await res.json();
-    // /api/proxy/tags returns {"models": [{name, modified_at, size, ...}, ...]}
     return data.models || [];
   }catch(e){
     console.error('fetchModels error', e);
@@ -436,34 +467,157 @@ async function fetchModels(){
 }
 
 function renderModels(models){
-  const tbody = document.querySelector('#models-table tbody');
-  tbody.innerHTML = '';
-  // models is now an array of model objects
+  const modelsList = document.getElementById('models-list');
+  const modelCount = document.getElementById('model-count');
+  
   if(!Array.isArray(models) || models.length === 0){
-    const tr = document.createElement('tr');
-    tr.innerHTML = '<td>No models available</td>';
-    tbody.appendChild(tr);
+    modelCount.textContent = '0';
+    modelsList.innerHTML = '<div class="loading-text">No models available</div>';
     return;
   }
-  // Sort by name (already sorted by backend, but ensure it)
+  
+  modelCount.textContent = models.length;
+  
   const sortedModels = models.sort((a,b)=>(a.name||'').localeCompare(b.name||''));
-  for(const model of sortedModels){
+  const modelsHtml = sortedModels.map(model => {
     const name = model.name || '';
-    if(!name) continue;
-    const tr = document.createElement('tr');
-    tr.innerHTML = `<td style="word-break:break-all">${name}</td>`;
-    tbody.appendChild(tr);
-  }
+    if(!name) return '';
+    return `<div class="model-item">${name}</div>`;
+  }).join('');
+  
+  modelsList.innerHTML = modelsHtml;
 }
 
 document.getElementById('refresh-models').addEventListener('click', async ()=>{
-  document.querySelector('#models-table tbody').innerHTML = '<tr><td>Loading...</td></tr>';
+  document.getElementById('models-list').innerHTML = '<div class="loading-text">Loading...</div>';
+  document.getElementById('model-count').textContent = '...';
   const models = await fetchModels();
   renderModels(models);
 });
 
-// initial load
+// Initial load
 (async ()=>{ const m = await fetchModels(); renderModels(m); })();
+
+// Pull to All Nodes functionality
+async function fetchAllNodesStatus() {
+  try {
+    const res = await fetch('/api/proxy/active-requests', {credentials: 'same-origin'});
+    if (!res.ok) { throw new Error('status ' + res.status); }
+    const data = await res.json();
+    return data.nodes || [];
+  } catch (e) {
+    console.error('fetchAllNodesStatus error', e);
+    return [];
+  }
+}
+
+function renderNodesPreview(nodes) {
+  const previewDiv = document.getElementById('nodes-preview');
+  
+  if (!nodes || nodes.length === 0) {
+    previewDiv.innerHTML = '<div class="preview-error">No active nodes available</div>';
+    previewDiv.style.display = 'block';
+    return;
+  }
+  
+  const html = nodes.map(node => {
+    const modelsCount = node.models ? node.models.length : 0;
+    const statusClass = node.status === 'active' ? 'status-active' : 'status-standby';
+    const modelsPreview = node.models && node.models.length > 0 
+      ? node.models.slice(0, 3).join(', ') + (node.models.length > 3 ? '...' : '')
+      : 'No models';
+    
+    return `
+      <div class="node-preview-card">
+        <div class="node-preview-header">
+          <strong>${node.name}</strong>
+          <span class="${statusClass}">${node.status}</span>
+        </div>
+        <div class="node-preview-info">
+          <div>Models: ${modelsCount}</div>
+          <div class="node-preview-models">${modelsPreview}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+  
+  previewDiv.innerHTML = html;
+  previewDiv.style.display = 'block';
+}
+
+document.getElementById('show-nodes-preview').addEventListener('click', async () => {
+  const previewDiv = document.getElementById('nodes-preview');
+  previewDiv.innerHTML = '<div class="loading-text">Loading nodes status...</div>';
+  previewDiv.style.display = 'block';
+  
+  const nodes = await fetchAllNodesStatus();
+  renderNodesPreview(nodes);
+});
+
+document.getElementById('pull-all-submit').addEventListener('click', async () => {
+  const modelName = document.getElementById('pull-all-model-input').value.trim();
+  const statusDiv = document.getElementById('pull-all-status');
+  const submitBtn = document.getElementById('pull-all-submit');
+  
+  if (!modelName) {
+    statusDiv.style.display = 'block';
+    statusDiv.className = 'pull-status pull-error';
+    statusDiv.textContent = 'Please enter a model name';
+    return;
+  }
+  
+  submitBtn.disabled = true;
+  statusDiv.style.display = 'block';
+  statusDiv.className = 'pull-status pull-loading';
+  statusDiv.textContent = 'Pulling model to all nodes... This may take several minutes.';
+  
+  try {
+    const response = await fetch('/api/proxy/pull', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+      },
+      credentials: 'same-origin',
+      body: JSON.stringify({
+        model: modelName
+      })
+    });
+    
+    const data = await response.json();
+    
+    if (response.ok && data.results) {
+      const successCount = data.results.filter(r => r.status === 'success').length;
+      const totalCount = data.results.length;
+      
+      if (successCount === totalCount) {
+        statusDiv.className = 'pull-status pull-success';
+        statusDiv.textContent = `✓ Successfully pulled to all ${totalCount} nodes`;
+      } else {
+        statusDiv.className = 'pull-status pull-error';
+        statusDiv.textContent = `⚠ Pulled to ${successCount}/${totalCount} nodes. Some failed.`;
+      }
+      
+      // Show detailed results
+      const detailsHtml = data.results.map(r => 
+        `<div class="pull-result ${r.status === 'success' ? 'success' : 'error'}">
+          ${r.node_name}: ${r.message}
+        </div>`
+      ).join('');
+      statusDiv.innerHTML += `<div class="pull-results-detail">${detailsHtml}</div>`;
+      
+      submitBtn.disabled = false;
+    } else {
+      statusDiv.className = 'pull-status pull-error';
+      statusDiv.textContent = `✗ ${data.error || 'Failed to pull model'}`;
+      submitBtn.disabled = false;
+    }
+  } catch (error) {
+    statusDiv.className = 'pull-status pull-error';
+    statusDiv.textContent = `✗ Error: ${error.message}`;
+    submitBtn.disabled = false;
+  }
+});
 </script>
 
 {% endblock %}

@@ -89,6 +89,17 @@ Development (ASGI — recommended for streaming endpoints):
 uv run main.py --reload --port 8000
 ```
 
+Static assets note (development)
+--------------------------------
+
+If you run the app locally with an ASGI server (for example via `uv run main.py` or `python main.py`) and you are using WhiteNoise or another static middleware, static files will be served from `STATIC_ROOT`. You need to collect static assets after making changes so the ASGI server can serve the updated files:
+
+```bash
+python src/manage.py collectstatic --noinput
+```
+
+If you are using Django's `runserver` during development (`python src/manage.py runserver`) and `DEBUG=True`, `collectstatic` is not required because `runserver` serves app `static/` directories directly.
+
 Run tests:
 
 ```bash
