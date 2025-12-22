@@ -44,6 +44,11 @@ async def application(scope, receive, send):
 						await mgr.health_check_all()
 					except Exception:
 						pass
+					# Start the background scheduler for periodic health checks and model refreshes
+					try:
+						mgr.start_scheduler(interval_minutes=10)
+					except Exception:
+						pass
 				except Exception:
 					# safe to ignore; manager can be initialized later
 					pass

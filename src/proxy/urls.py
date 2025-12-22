@@ -4,7 +4,6 @@ from .viewsets import (
     NodeViewSet,
 )
 from .views import (
-    health,
     state,
 )
 from .views_proxy import (

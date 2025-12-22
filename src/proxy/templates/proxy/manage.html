@@ -51,7 +51,20 @@
       {% endfor %}
     </tbody>
     <!-- Hidden Add Node form will be shown in modal -->
-  </form>
+  
+</section>
+
+<section class="card">
+  <h2>Available Models (aggregated)</h2>
+  <div style="margin-bottom:8px">
+    <button id="refresh-models">Refresh Models</button>
+  </div>
+  <table id="models-table" class="nodes" style="width:100%">
+    <thead><tr><th>Model</th></tr></thead>
+    <tbody>
+      <tr><td>Loading...</td></tr>
+    </tbody>
+  </table>
 </section>
 
   <!-- Edit/Add Node Modal -->
@@ -134,5 +147,50 @@
   closeBtn.addEventListener('click', closeModal);
   window.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
   </script>
+
+<script>
+async function fetchModels(){
+  try{
+    const res = await fetch('/api/proxy/tags', {credentials: 'same-origin'});
+    if(!res.ok){ throw new Error('status '+res.status); }
+    const data = await res.json();
+    // /api/proxy/tags returns {"models": [{name, modified_at, size, ...}, ...]}
+    return data.models || [];
+  }catch(e){
+    console.error('fetchModels error', e);
+    return [];
+  }
+}
+
+function renderModels(models){
+  const tbody = document.querySelector('#models-table tbody');
+  tbody.innerHTML = '';
+  // models is now an array of model objects
+  if(!Array.isArray(models) || models.length === 0){
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td>No models available</td>';
+    tbody.appendChild(tr);
+    return;
+  }
+  // Sort by name (already sorted by backend, but ensure it)
+  const sortedModels = models.sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  for(const model of sortedModels){
+    const name = model.name || '';
+    if(!name) continue;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td style="word-break:break-all">${name}</td>`;
+    tbody.appendChild(tr);
+  }
+}
+
+document.getElementById('refresh-models').addEventListener('click', async ()=>{
+  document.querySelector('#models-table tbody').innerHTML = '<tr><td>Loading...</td></tr>';
+  const models = await fetchModels();
+  renderModels(models);
+});
+
+// initial load
+(async ()=>{ const m = await fetchModels(); renderModels(m); })();
+</script>
 
 {% endblock %}

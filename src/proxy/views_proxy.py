@@ -1,4 +1,5 @@
 import json
+import asyncio
 
 from django.http import JsonResponse, HttpResponse, StreamingHttpResponse
 from rest_framework.decorators import api_view, permission_classes
@@ -8,6 +9,7 @@ logger = logging.getLogger('proxy')
 from drf_spectacular.utils import extend_schema
 from .views import _get_manager
 from . import streaming as _streaming
+from asgiref.sync import async_to_sync
 
 @extend_schema(
     tags=['Proxy'],
@@ -63,21 +65,18 @@ from . import streaming as _streaming
 )
 @api_view(['POST'])
 @permission_classes([AllowAny])
-async def proxy_generate(request):
+def proxy_generate(request):
     mgr = _get_manager()
     if mgr is None:
         return JsonResponse({"error": "no proxy nodes configured"}, status=503)
 
-    try:
-        body_bytes = request.body or b""
-        payload = None
-        if body_bytes:
-            try:
-                payload = json.loads(body_bytes.decode())
-            except Exception:
-                payload = None
-    except Exception:
-        body_bytes = await request.body
+    body_bytes = request.body or b""
+    payload = None
+    if body_bytes:
+        try:
+            payload = json.loads(body_bytes.decode())
+        except Exception:
+            payload = None
 
     if payload and payload.get("node_id") is not None:
         return JsonResponse({"error": "specifying node_id is not allowed"}, status=400)
@@ -113,18 +112,22 @@ async def proxy_generate(request):
 
     # non-streaming path (buffered)
     import httpx
-    try:
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            resp = await client.post(url, headers=headers, content=body_bytes)
-            return HttpResponse(resp.content, status=resp.status_code, content_type=resp.headers.get("content-type", "application/json"))
-    except Exception:
-        logger.exception("proxy generate request failed")
-        return JsonResponse({"error": "upstream request failed"}, status=502)
-    finally:
+    
+    async def do_request():
         try:
-            mgr.release_node(node_addr)
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                resp = await client.post(url, headers=headers, content=body_bytes)
+                return HttpResponse(resp.content, status=resp.status_code, content_type=resp.headers.get("content-type", "application/json"))
         except Exception:
-            pass
+            logger.exception("proxy generate request failed")
+            return JsonResponse({"error": "upstream request failed"}, status=502)
+        finally:
+            try:
+                mgr.release_node(node_addr)
+            except Exception:
+                pass
+    
+    return async_to_sync(do_request)()
 
 
 @extend_schema(
@@ -198,21 +201,18 @@ async def proxy_generate(request):
 )
 @api_view(['POST'])
 @permission_classes([AllowAny])
-async def proxy_chat(request):
+def proxy_chat(request):
     mgr = _get_manager()
     if mgr is None:
         return JsonResponse({"error": "no proxy nodes configured"}, status=503)
 
-    try:
-        body_bytes = request.body or b""
-        payload = None
-        if body_bytes:
-            try:
-                payload = json.loads(body_bytes.decode())
-            except Exception:
-                payload = None
-    except Exception:
-        body_bytes = await request.body
+    body_bytes = request.body or b""
+    payload = None
+    if body_bytes:
+        try:
+            payload = json.loads(body_bytes.decode())
+        except Exception:
+            payload = None
 
     if payload and payload.get("node_id") is not None:
         return JsonResponse({"error": "specifying node_id is not allowed"}, status=400)
@@ -229,18 +229,21 @@ async def proxy_chat(request):
     if payload and payload.get("stream") is False:
         import httpx
 
-        try:
-            async with httpx.AsyncClient(timeout=120.0) as client:
-                resp = await client.post(url, headers=headers, content=body_bytes)
-                return HttpResponse(resp.content, status=resp.status_code, content_type=resp.headers.get("content-type", "application/json"))
-        except Exception:
-            logger.exception("proxy chat request failed")
-            return JsonResponse({"error": "upstream request failed"}, status=502)
-        finally:
+        async def do_request():
             try:
-                mgr.release_node(node_addr)
+                async with httpx.AsyncClient(timeout=120.0) as client:
+                    resp = await client.post(url, headers=headers, content=body_bytes)
+                    return HttpResponse(resp.content, status=resp.status_code, content_type=resp.headers.get("content-type", "application/json"))
             except Exception:
-                pass
+                logger.exception("proxy chat request failed")
+                return JsonResponse({"error": "upstream request failed"}, status=502)
+            finally:
+                try:
+                    mgr.release_node(node_addr)
+                except Exception:
+                    pass
+        
+        return async_to_sync(do_request)()
 
     # streaming path
     async def _stream_and_release():
@@ -301,21 +304,18 @@ async def proxy_chat(request):
 )
 @api_view(['POST'])
 @permission_classes([AllowAny])
-async def proxy_embed(request):
+def proxy_embed(request):
     mgr = _get_manager()
     if mgr is None:
         return JsonResponse({"error": "no proxy nodes configured"}, status=503)
 
-    try:
-        body_bytes = request.body or b""
-        payload = None
-        if body_bytes:
-            try:
-                payload = json.loads(body_bytes.decode())
-            except Exception:
-                payload = None
-    except Exception:
-        body_bytes = await request.body
+    body_bytes = request.body or b""
+    payload = None
+    if body_bytes:
+        try:
+            payload = json.loads(body_bytes.decode())
+        except Exception:
+            payload = None
 
     if payload and payload.get("node_id") is not None:
         return JsonResponse({"error": "specifying node_id is not allowed"}, status=400)
@@ -329,18 +329,22 @@ async def proxy_embed(request):
     headers = {k: v for k, v in request.headers.items() if k.lower() not in ("host", "content-length")}
 
     import httpx
-    try:
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            resp = await client.post(url, headers=headers, content=body_bytes)
-            return HttpResponse(resp.content, status=resp.status_code, content_type=resp.headers.get("content-type", "application/json"))
-    except Exception:
-        logger.exception("proxy embed request failed")
-        return JsonResponse({"error": "upstream request failed"}, status=502)
-    finally:
+    
+    async def do_request():
         try:
-            mgr.release_node(node_addr)
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                resp = await client.post(url, headers=headers, content=body_bytes)
+                return HttpResponse(resp.content, status=resp.status_code, content_type=resp.headers.get("content-type", "application/json"))
         except Exception:
-            pass
+            logger.exception("proxy embed request failed")
+            return JsonResponse({"error": "upstream request failed"}, status=502)
+        finally:
+            try:
+                mgr.release_node(node_addr)
+            except Exception:
+                pass
+    
+    return async_to_sync(do_request)()
 
 
 @extend_schema(
@@ -380,21 +384,18 @@ async def proxy_embed(request):
 )
 @api_view(['POST'])
 @permission_classes([AllowAny])
-async def proxy_embeddings(request):
+def proxy_embeddings(request):
     mgr = _get_manager()
     if mgr is None:
         return JsonResponse({"error": "no proxy nodes configured"}, status=503)
 
-    try:
-        body_bytes = request.body or b""
-        payload = None
-        if body_bytes:
-            try:
-                payload = json.loads(body_bytes.decode())
-            except Exception:
-                payload = None
-    except Exception:
-        body_bytes = await request.body
+    body_bytes = request.body or b""
+    payload = None
+    if body_bytes:
+        try:
+            payload = json.loads(body_bytes.decode())
+        except Exception:
+            payload = None
 
     if payload and payload.get("node_id") is not None:
         return JsonResponse({"error": "specifying node_id is not allowed"}, status=400)
@@ -408,18 +409,22 @@ async def proxy_embeddings(request):
     headers = {k: v for k, v in request.headers.items() if k.lower() not in ("host", "content-length")}
 
     import httpx
-    try:
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            resp = await client.post(url, headers=headers, content=body_bytes)
-            return HttpResponse(resp.content, status=resp.status_code, content_type=resp.headers.get("content-type", "application/json"))
-    except Exception:
-        logger.exception("proxy embeddings request failed")
-        return JsonResponse({"error": "upstream request failed"}, status=502)
-    finally:
+    
+    async def do_request():
         try:
-            mgr.release_node(node_addr)
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                resp = await client.post(url, headers=headers, content=body_bytes)
+                return HttpResponse(resp.content, status=resp.status_code, content_type=resp.headers.get("content-type", "application/json"))
         except Exception:
-            pass
+            logger.exception("proxy embeddings request failed")
+            return JsonResponse({"error": "upstream request failed"}, status=502)
+        finally:
+            try:
+                mgr.release_node(node_addr)
+            except Exception:
+                pass
+    
+    return async_to_sync(do_request)()
 
 
 @extend_schema(
@@ -456,13 +461,14 @@ async def proxy_embeddings(request):
         503: {'type': 'object', 'properties': {'error': {'type': 'string'}}},
     },
     description=(
-        "List models available locally. Returns metadata for each model including `name`, `modified_at` (RFC3339), "
-        "`size` (bytes), `digest`, and a `details` object with format/family/parameter_size/quantization_level."
+        "List models available across all proxy nodes (aggregated). Returns metadata for each unique model including `name`, `modified_at` (RFC3339), "
+        "`size` (bytes), `digest`, and a `details` object with format/family/parameter_size/quantization_level. "
+        "Models with the same name from different nodes are deduplicated, keeping the most recently modified version."
     )
 )
 @api_view(['GET'])
 @permission_classes([AllowAny])
-async def proxy_tags(request):
+def proxy_tags(request):
     mgr = _get_manager()
     if mgr is None:
         return JsonResponse({"error": "no proxy nodes configured"}, status=503)
@@ -470,23 +476,57 @@ async def proxy_tags(request):
     if request.GET.get("node_id") is not None:
         return JsonResponse({"error": "specifying node_id is not allowed"}, status=400)
 
-    node_addr = mgr.choose_node(model_name=None)
-    if not node_addr:
-        return JsonResponse({"error": "no healthy nodes available"}, status=503)
+    # Get all active and standby nodes
+    from django.core.cache import cache
+    active = cache.get(mgr.ACTIVE_POOL_KEY, [])
+    standby = cache.get(mgr.STANDBY_POOL_KEY, [])
+    all_nodes = list({*active, *standby})
 
-    url = node_addr.rstrip("/") + "/api/tags"
-    headers = {k: v for k, v in request.headers.items() if k.lower() not in ("host", "content-length")}
+    if not all_nodes:
+        return JsonResponse({"error": "no nodes available"}, status=503)
 
+    # Query /api/tags from all nodes concurrently
     import httpx
-    try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            resp = await client.get(url, headers=headers)
-            return HttpResponse(resp.content, status=resp.status_code, content_type=resp.headers.get("content-type", "application/json"))
-    except Exception:
-        logger.exception("proxy tags request failed")
-        return JsonResponse({"error": "upstream request failed"}, status=502)
-    finally:
+
+    async def fetch_node_tags(addr):
+        url = addr.rstrip("/") + "/api/tags"
         try:
-            mgr.release_node(node_addr)
-        except Exception:
-            pass
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.get(url)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    return data.get("models", []) if isinstance(data, dict) else []
+        except Exception as e:
+            logger.debug("failed to fetch tags from %s: %s", addr, e)
+        return []
+
+    async def fetch_all():
+        tasks = [fetch_node_tags(addr) for addr in all_nodes]
+        return await asyncio.gather(*tasks, return_exceptions=True)
+
+    # Fetch from all nodes concurrently (use async_to_sync for sync view)
+    results = async_to_sync(fetch_all)()
+
+    # Aggregate models: deduplicate by name, keep most recent modified_at
+    models_dict = {}
+    for result in results:
+        if isinstance(result, list):
+            for model in result:
+                if isinstance(model, dict) and model.get("name"):
+                    name = model["name"]
+                    # If model name already exists, compare modified_at and keep newer
+                    if name in models_dict:
+                        existing_modified = models_dict[name].get("modified_at", "")
+                        new_modified = model.get("modified_at", "")
+                        # Simple string comparison works for RFC3339 timestamps
+                        if new_modified > existing_modified:
+                            models_dict[name] = model
+                    else:
+                        models_dict[name] = model
+
+    # Sort by name for consistent ordering
+    models_list = sorted(models_dict.values(), key=lambda m: m.get("name", ""))
+
+    return JsonResponse({"models": models_list}, safe=False)
+
+    return JsonResponse({"models": models_list}, safe=False)
