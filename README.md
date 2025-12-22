@@ -22,7 +22,7 @@ Lightweight reverse-proxy and HA manager for Ollama model-serving nodes.
 
 ## Purpose
 
-- Provide a unified API under `/api/proxy/` that forwards requests to one or
+- Provide a unified API under `/api/proxy` that forwards requests to one or
   more Ollama nodes, selecting the best node automatically based on configured
   HA/load-balancing strategies.
 - Make endpoints model-aware (only route requests to nodes exposing the
@@ -38,75 +38,75 @@ Lightweight reverse-proxy and HA manager for Ollama model-serving nodes.
 - Proxy endpoints: `POST /api/proxy/chat`, `/generate`, `/embed`, `/embeddings`
   that forward requests to appropriate nodes and support streaming
 - HA/Load strategies: `least_active` (default, load-balancing) and `lowest_latency`
--- Periodic background tasks: health checks and model refresh (default: 1 minute)
+  - Periodic background tasks: health checks and model refresh (default: 1 minute)
 
 ## Quick Start
 
-### 1. Docker
+This project now prioritizes the Web UI as the primary user interface for managing nodes, models and proxy configuration. The Web UI provides full CRUD for the proxy APIs and is the recommended entry point for most users.
+
+### 1. Using the Web UI (recommended)
+
+1. Start the app with Docker Compose:
 
 ```bash
 docker compose up -d
 ```
 
-### 2. Python (uv)
+2. Open your browser at http://localhost:8000 — the management UI provides pages to create, update, list, and delete Ollama nodes, proxy settings, and more.
 
-1. **Install**
+3. Default administrative credentials:
 
-    ```bash
-    uv sync
-    ```
+- Username: `root`
+- Password: `changeme`
 
-2. **Setup DB & migrations**
-
-    ```bash
-    cd src
-    uv run manage.py migrate
-    ```
-
-3. **Development (ASGI — recommended)**
-
-    The proxy uses streaming endpoints that work best under an ASGI server (e.g.
-    `uvicorn`). This repo includes a small CLI `main.py` that launches `uvicorn`.
-
-    Hot-reload (recommended during development):
-
-    ```bash
-    # from repository root
-    uv run main.py --reload --port 8000
-    ```
-
-    Run without hot-reload (sync-like):
-
-    ```bash
-    uv run main.py --no-reload --port 8000
-    ```
-
-    Alternative: run Django's development server (not optimal for streaming):
-
-    ```bash
-    cd src
-    uv run manage.py runserver
-    ```
-
-4. **Tests (Django test runner)**
-
-    Use Django's native test runner for the app tests:
-
-    ```bash
-    cd src
-    uv run manage.py test proxy.tests
-    ```
-
-## Web UI
-
-- The web management UI is available at http://localhost:8000 (when running locally).
-- Default administrative username is `root`. The default password is `changeme`.
-- To change the default `root` password, set it in a repository `.env` file at the
-  project root (one level above `src`) using the `ROOT_PASSWORD` variable, e.g.: 
+To change the default `root` password, set `ROOT_PASSWORD` in the repository `.env` file at the project root (one level above `src`), for example:
 
 ```env
 ROOT_PASSWORD=your_secure_password_here
 ```
+
+### 2. Docker / CLI (advanced)
+
+If you prefer running the app outside Docker or need to run management tasks, use the included `uv` CLI. The CLI is useful for development, running migrations, or launching with hot-reload.
+
+Install runtime helpers:
+
+```bash
+uv sync
+```
+
+Run database migrations:
+
+```bash
+cd src
+uv run manage.py migrate
+```
+
+Development (ASGI — recommended for streaming endpoints):
+
+```bash
+# from repository root
+uv run main.py --reload --port 8000
+```
+
+Run tests:
+
+```bash
+cd src
+uv run manage.py test proxy.tests
+```
+
+## Configuration Parameters
+
+This section documents common environment variables and parameters you may set when running the app (Docker, `.env`, or host environment). Defaults shown are what the repository uses for development; adjust for production.
+
+- `PORT` — Host port mapping for Docker Compose. Default: `8000`. (Docker Compose `ports: "${PORT:-8000}:${PORT:-8000}"`.)
+- `DJANGO_PORT` — Application port used by some scripts; default `8000` when present in `.env`.
+- `DJANGO_DEBUG` — Enable Django debug mode. Values: `True`/`False` (case-insensitive). Default: `True` in development.
+- `DJANGO_SECRET_KEY` — Django secret key. In production **must** be set in environment; if not set while `DEBUG=False` the app will raise an error. A development default exists in `src/aivonx/settings.py` (replace it for production).
+- `ROOT_PASSWORD` — Initial admin password for the Web UI (development convenience). Set this in the repository `.env` (one level above `src`) to override the default `changeme`.
+- `DJANGO_ALLOWED_HOSTS` — Comma-separated list of allowed hosts. Use with `DJANGO_ALLOWED_HOSTS=host1,host2`.
+- `DJANGO_CORS_ALLOWED_ORIGINS` / `DJANGO_CSRF_TRUSTED_ORIGINS` — Comma-separated origins; scheme is normalized by the app.
 
 ## Notes
 
