@@ -2,7 +2,14 @@
 
 Lightweight reverse-proxy and HA manager for Ollama model-serving nodes.
 
-![image generate by nano banana](./asstes/images/AIVONX_PROXY.png)
+<p align="center">
+  <img
+    src="./asstes/images/AIVONX_PROXY.png"
+    alt="AIVONX Proxy"
+    width="200"
+    height="200"
+  />
+</p>
 
 ## Purpose
 
