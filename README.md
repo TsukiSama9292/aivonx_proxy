@@ -2,6 +2,8 @@
 
 Lightweight reverse-proxy and HA manager for Ollama model-serving nodes.
 
+![image generate by nano banana](./asstes/images/AIVONX_PROXY.png)
+
 ## Purpose
 
 - Provide a unified API under `/api/proxy/` that forwards requests to one or
@@ -79,14 +81,6 @@ docker compose up -d
     uv run manage.py test proxy.tests
     ```
 
-## Notes
-
-- Streaming endpoints behave best under an ASGI server (uvicorn) to avoid WSGI
-  buffering issues.
-- The HA manager stores runtime state in Django cache. On startup the manager
-  populates state from the database and schedules periodic refreshes (default
-  every minute).
-
 ## Web UI
 
 - The web management UI is available at http://localhost:8000 (when running locally).
@@ -97,6 +91,14 @@ docker compose up -d
 ```env
 ROOT_PASSWORD=your_secure_password_here
 ```
+
+## Notes
+
+- Streaming endpoints behave best under an ASGI server (uvicorn) to avoid WSGI
+  buffering issues.
+- The HA manager stores runtime state in Django cache. On startup the manager
+  populates state from the database and schedules periodic refreshes (default
+  every minute).
 
 ## Docs
 

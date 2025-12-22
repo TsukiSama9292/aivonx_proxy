@@ -18,7 +18,7 @@ from django.contrib import admin
 from django.urls import path, include
 from django.views.generic.base import RedirectView
 from .views import HealthCheckView
-from proxy.handlers import health as proxy_health
+from proxy.views import health as proxy_health
 from proxy.web import ProxyLoginView, proxy_logout_view, manage as proxy_manage
 
 urlpatterns = [

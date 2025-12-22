@@ -25,7 +25,7 @@ class TestProxyTagsEndpoint(TransactionTestCase, ProxyTestMixin):
         super().tearDown()
 
     @unittest.skip("Skip reverse-proxy network tests as requested")
-    @patch("proxy.handlers.httpx.AsyncClient")
+    @patch("proxy.views.httpx.AsyncClient")
     async def test_tags_success(self, mock_client):
         """Test successful tags request."""
         # Setup manager and cache

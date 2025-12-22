@@ -3,17 +3,18 @@ from rest_framework.routers import DefaultRouter
 from .viewsets import (
     NodeViewSet,
 )
-from .handlers import (
+from .views import (
     health,
+    state,
+)
+from .views_proxy import (
     proxy_generate,
     proxy_chat,
     proxy_tags,
     proxy_embed,
     proxy_embeddings,
-    state,
 )
 from .views import proxy_config
-from .web import ProxyLoginView, proxy_logout_view, manage as proxy_manage
 
 router = DefaultRouter(trailing_slash='')
 router.register(r'nodes', NodeViewSet)
