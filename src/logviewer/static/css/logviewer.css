@@ -1,0 +1,45 @@
+.logviewer-controls {
+    display: flex;
+    gap: 8px;
+    align-items: flex-end
+}
+
+#logs-table td {
+    text-align: center
+}
+
+#logs-table td:nth-child(5) {
+    text-align: left
+}
+
+.level-DEBUG {
+    color: #1f9d3a;
+    font-weight: 600
+}
+
+.level-INFO {
+    color: #0b5fff;
+    font-weight: 600
+}
+
+.level-WARNING {
+    color: #d4a11b;
+    font-weight: 700
+}
+
+.level-ERROR {
+    color: #ff7a18;
+    font-weight: 700
+}
+
+.level-CRITICAL {
+    color: #c92a2a;
+    font-weight: 800
+}
+
+.level-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.03);
+}

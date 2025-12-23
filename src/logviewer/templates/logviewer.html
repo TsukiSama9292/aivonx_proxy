@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Logs Viewer{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/logviewer.css' %}">
+<script src="{% static 'js/jquery-3.7.1.min.js' %}"></script>
+{% endblock %}
+
+{% block content %}
+<section class="card">
+  <h2>Logs Viewer</h2>
+  <form id="logs-search" onsubmit="return false;" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end">
+    <div style="flex:1;min-width:180px">
+      <label for="q-query">Query</label>
+      <input id="q-query" name="query" placeholder="message contains...">
+    </div>
+    <div style="width:140px">
+      <label for="q-level">Level</label>
+      <select id="q-level" name="level">
+        <option value="">Any</option>
+        <option>DEBUG</option>
+        <option>INFO</option>
+        <option>WARNING</option>
+        <option>ERROR</option>
+        <option>CRITICAL</option>
+      </select>
+    </div>
+    <div style="width:140px">
+      <label for="q-source">Source</label>
+      <select id="q-source" name="source">
+        <option value="django">django</option>
+        <option value="proxy">proxy</option>
+      </select>
+    </div>
+    <div style="width:120px">
+      <label for="q-limit">Limit</label>
+      <input id="q-limit" name="limit" type="number" value="100" min="1" max="1000">
+    </div>
+    <div>
+      <button id="search-btn">Search</button>
+    </div>
+  </form>
+  <div id="logs-results" style="margin-top:12px">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div>Showing <span id="display-range">0-0</span> of <strong id="display-count">0</strong></div>
+      <div>
+        <button id="prev-btn">Prev</button>
+        <button id="next-btn">Next</button>
+      </div>
+    </div>
+    <table id="logs-table" class="nodes" style="width:100%">
+      <thead>
+        <tr>
+          <th>Num</th>
+          <th>Time</th>
+          <th>Level</th>
+          <th>Logger</th>
+          <th>Message</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_body %}
+<script src="{% static 'js/logviewer.js' %}"></script>
+{% endblock %}
