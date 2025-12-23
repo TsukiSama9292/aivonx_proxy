@@ -67,7 +67,7 @@ uv run manage.py makemigrations
 ## 5. 執行資料庫遷移檔案
 
 ```bash
-uv run manage.py migrate
+uv run src/manage.py migrate
 ```
 
 ## 6. 運行 Django 專案

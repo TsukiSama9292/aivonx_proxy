@@ -13,7 +13,7 @@ from .conftest import ProxyTestMixin
 
 
 class TestProxyTagsEndpoint(TransactionTestCase, ProxyTestMixin):
-    """Test /api/proxy/tags endpoint."""
+    """Test /api/tags endpoint."""
 
     def setUp(self):
         super().setUp()
@@ -45,7 +45,7 @@ class TestProxyTagsEndpoint(TransactionTestCase, ProxyTestMixin):
         mock_client_instance.get.return_value = mock_response
         mock_client.return_value = mock_client_instance
         
-        url = "/api/proxy/tags"
+        url = "/api/tags"
         # Use sync client since Django test client handles async
         from django.test import AsyncClient
         client = AsyncClient()
@@ -60,7 +60,7 @@ class TestProxyTagsEndpoint(TransactionTestCase, ProxyTestMixin):
         mgr = HAProxyManager(nodes=[])
         cache.set(mgr.ACTIVE_POOL_KEY, [])
         
-        url = "/api/proxy/tags"
+        url = "/api/tags"
         from django.test import AsyncClient
         client = AsyncClient()
         response = await client.get(url)
@@ -75,7 +75,7 @@ class TestProxyTagsEndpoint(TransactionTestCase, ProxyTestMixin):
         mgr = HAProxyManager(nodes=["http://192.168.0.54:11434"])
         cache.set(mgr.ACTIVE_POOL_KEY, ["http://192.168.0.54:11434"])
         
-        url = "/api/proxy/tags?node_id=1"
+        url = "/api/tags?node_id=1"
         from django.test import AsyncClient
         client = AsyncClient()
         response = await client.get(url)

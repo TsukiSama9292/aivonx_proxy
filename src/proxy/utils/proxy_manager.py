@@ -477,7 +477,25 @@ def init_global_manager_from_db(health_path: str = "/api/health") -> HAProxyMana
             # perform an immediate health check to populate active/standby pools
             _run_coro(mgr.health_check_all())
             # start periodic health and model refresh jobs
-            mgr.start_scheduler()
+            # Try to acquire a distributed leader lock so only one worker starts the scheduler.
+            # `cache.add` is atomic for shared cache backends (Redis/Memcached). LocMemCache is
+            # process-local, so switch to a shared cache for this to work across workers.
+            leader_key = "ha_manager_leader"
+            # lock timeout in seconds (if process dies, lock expires and another worker can take over)
+            leader_lock_timeout = 60 * 30
+            try:
+                got_lock = cache.add(leader_key, True, leader_lock_timeout)
+            except Exception:
+                got_lock = False
+
+            if got_lock:
+                try:
+                    mgr.start_scheduler()
+                    logger.info("init_global_manager_from_db: acquired leader lock and started scheduler")
+                except Exception as e:
+                    logger.exception("init_global_manager_from_db: failed to start scheduler: %s", e)
+            else:
+                logger.info("init_global_manager_from_db: did not acquire leader lock; scheduler not started in this worker")
             logger.debug("init_global_manager_from_db: scheduled refresh/health and started scheduler")
         except Exception as e:
             logger.exception("init_global_manager_from_db: failed to schedule startup jobs: %s", e)

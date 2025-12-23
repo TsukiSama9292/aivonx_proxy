@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "aivonx"
-version = "0.0.0.dev0"
+version = "0.13.5"
 requires-python = ">=3.12, <3.13"
 description = "aivonx"
 
@@ -26,6 +26,9 @@ dependencies = [
     "apscheduler>=3.11.1",
     "python-json-logger>=4.0.0",
     "whitenoise>=6.11.0",
+    "django-redis>=6.0.0",
+    "redis>=7.1.0",
+    "psycopg2-binary>=2.9.11",
 ]
 
 [dependency-groups]

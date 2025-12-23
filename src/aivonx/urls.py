@@ -50,3 +50,22 @@ if settings.DEBUG:
     from django.contrib.staticfiles.urls import staticfiles_urlpatterns
 
     urlpatterns += staticfiles_urlpatterns()
+
+from proxy.views_proxy import (
+    proxy_generate,
+    proxy_chat,
+    proxy_tags,
+    proxy_ps,
+    proxy_embed,
+    proxy_embeddings,
+)
+from .views import VersionView
+urlpatterns += [
+    path('api/generate', proxy_generate, name='proxy_generate'),
+    path('api/chat', proxy_chat, name='proxy_chat'),
+    path('api/tags', proxy_tags, name='proxy_tags'),
+    path('api/ps', proxy_ps, name='proxy_ps'),
+    path('api/embed', proxy_embed, name='proxy_embed'),
+    path('api/embeddings', proxy_embeddings, name='proxy_embeddings'),
+    path('api/version', VersionView.as_view(), name='version-view'),
+]

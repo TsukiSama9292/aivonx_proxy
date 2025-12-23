@@ -29,12 +29,12 @@ Lightweight reverse-proxy and HA manager for Ollama model-serving nodes.
   requested model) and support streaming responses for real-time proxies.
 
 ## Core features
-- Support Ollama API: add url `url/api/proxy` for your tools
+- Support Ollama API: add url `https://your-domain` for your tools
 - Ollama reverse proxy: configure your tools to use the proxy as the Ollama
-  API endpoint (for example `http://localhost:8000/api/proxy`).
+  API endpoint (for example `http://localhost:8000`).
 - CRUD management for Ollama nodes (`/api/proxy/nodes`)
 - Health endpoint: `GET /api/proxy` — returns 200 when any node is available
-- Model discovery: `GET /api/proxy/tags` — lists models available on nodes
+- Model discovery: `GET /api/tags` — lists models available on nodes
 - Proxy endpoints: `POST /api/proxy/chat`, `/generate`, `/embed`, `/embeddings`
   that forward requests to appropriate nodes and support streaming
 - HA/Load strategies: `least_active` (default, load-balancing) and `lowest_latency`

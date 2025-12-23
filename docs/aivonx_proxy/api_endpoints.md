@@ -7,7 +7,7 @@ State / Diagnostics
 - GET `/api/proxy/state` — (authenticated) returns manager cache contents: active nodes, standby nodes, model lists, latencies, active counts.
 
 Models
-- GET `/api/proxy/tags` — returns aggregated `models` from nodes. Uses manager cached `ha_models:{addr}` values.
+- GET `/api/tags` — returns aggregated `models` from nodes. Uses manager cached `ha_models:{addr}` values.
 
 Proxy endpoints (forwarding)
 - POST `/api/proxy/chat` — forwards Chat requests to a chosen node. Supports `stream: true` for streaming responses.

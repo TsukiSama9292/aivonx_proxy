@@ -8,13 +8,7 @@ from .views import (
     active_requests,
     pull_model,
 )
-from .views_proxy import (
-    proxy_generate,
-    proxy_chat,
-    proxy_tags,
-    proxy_embed,
-    proxy_embeddings,
-)
+
 from .views import proxy_config
 
 router = DefaultRouter(trailing_slash='')
@@ -22,13 +16,8 @@ router.register(r'nodes', NodeViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),
-    path('generate', proxy_generate, name='proxy_generate'),
-    path('chat', proxy_chat, name='proxy_chat'),
-    path('config', proxy_config, name='proxy_config'),
-    path('tags', proxy_tags, name='proxy_tags'),
     path('state', state, name='proxy_state'),
     path('active-requests', active_requests, name='active_requests'),
     path('pull', pull_model, name='pull_model'),
-    path('embed', proxy_embed, name='proxy_embed'),
-    path('embeddings', proxy_embeddings, name='proxy_embeddings'),
+    path('config', proxy_config, name='proxy_config'),
 ]

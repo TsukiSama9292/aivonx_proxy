@@ -7,10 +7,36 @@ x-default-opts: &default-opts
 
 services:
   django:
+    <<: *default-opts
     container_name: app
     build:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "${PORT:-8000}:${PORT:-8000}"
-    command: ["uv", "run", "main.py"]
+      - "${APP_PORT:-8000}:8000"
+    command: ["uv", "run", "main.py", "--workers", "2"]
+  redis:
+    <<: *default-opts
+    container_name: redis
+    ports:
+      - "6379:6379"
+    image: redis:8.4-alpine3.22
+  postgres:
+    <<: *default-opts
+    container_name: postgres
+    image: postgres:18.1-alpine3.23
+    environment:
+      POSTGRES_USER: "${POSTGRES_USER:-user}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-password}"
+      POSTGRES_DB: "${POSTGRES_DB:-app_db}"
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+networks:
+  default:
+    driver: bridge
+
+volumes:
+  pgdata:

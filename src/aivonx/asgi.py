@@ -1,13 +1,5 @@
-"""
-ASGI config for aivonx project.
-
-It exposes the ASGI callable as a module-level variable named ``application``.
-
-For more information on this file, see
-https://docs.djangoproject.com/en/5.2/howto/deployment/asgi/
-"""
-
 import os
+import asyncio
 from django.core.asgi import get_asgi_application
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'aivonx.settings')
 
@@ -39,7 +31,7 @@ async def application(scope, receive, send):
 						logger.info("ASGI startup: nodes loaded: %s", mgr.nodes)
 					except Exception as e:
 						logger.error("ASGI startup: failed to load nodes from DB: %s", e, exc_info=True)
-					
+
 					# Run initial model refresh to populate available_models cache
 					try:
 						logger.info("ASGI startup: refreshing models...")
@@ -47,7 +39,7 @@ async def application(scope, receive, send):
 						logger.info("ASGI startup: models refresh complete")
 					except Exception as e:
 						logger.error("ASGI startup: models refresh failed: %s", e, exc_info=True)
-					
+
 					# Run initial health check to populate latencies and active/standby pools
 					try:
 						logger.info("ASGI startup: running health checks...")
@@ -55,14 +47,146 @@ async def application(scope, receive, send):
 						logger.info("ASGI startup: health checks complete")
 					except Exception as e:
 						logger.error("ASGI startup: health check failed: %s", e, exc_info=True)
-					
+
 					# Start the background scheduler for periodic health checks and model refreshes
+					# Use leader lock to ensure only one worker starts the scheduler
 					try:
-						mgr.start_scheduler(interval_minutes=10)
-						logger.info("ASGI startup: scheduler started")
-					except Exception as e:
-						logger.error("ASGI startup: scheduler start failed: %s", e, exc_info=True)
+						from django.core.cache import cache
+						leader_key = "ha_manager_leader"
+						leader_lock_timeout = 30  # 30 seconds (short TTL with renew)
+						# Info: report cache backend and current leader key state (use INFO to ensure visibility)
+						backend = cache.__class__.__module__ + "." + cache.__class__.__name__
+						logger.info("ASGI startup: cache backend = %s", backend)
+						try:
+							existing = cache.get(leader_key)
+							logger.info("ASGI startup: leader key exists before add = %s", existing is not None)
+						except Exception:
+							logger.info("ASGI startup: unable to read leader key before add")
 					
+						# Try to acquire distributed leader lock (atomic on Redis/Memcached)
+						got_lock = False
+						try:
+							got_lock = cache.add(leader_key, True, leader_lock_timeout)
+							logger.info("ASGI startup: cache.add returned = %s", got_lock)
+						except Exception as add_error:
+							logger.exception("ASGI startup: cache.add failed with exception: %s", add_error)
+							got_lock = False
+
+						# If cache.add succeeded, try to ensure Redis also has an owner value
+						if got_lock:
+							try:
+								import socket
+								owner = f"{socket.gethostname()}:{os.getpid()}"
+								try:
+									from django_redis import get_redis_connection
+									conn = get_redis_connection('default')
+									val = conn.get(leader_key)
+									if val is None:
+										try:
+											conn.set(leader_key, owner, ex=leader_lock_timeout)
+										except Exception:
+											logger.debug("ASGI startup: failed to write owner to redis after cache.add")
+								except Exception:
+									pass
+							except Exception:
+								logger.debug("ASGI startup: owner write skipped (socket/import failed)")
+
+						# If cache.add did not acquire the lock, try raw Redis SET NX (if django-redis available).
+						# This avoids issues with local in-process proxies/local cache layers.
+						if not got_lock:
+							try:
+								import socket
+								owner = f"{socket.gethostname()}:{os.getpid()}"
+								from django_redis import get_redis_connection
+								conn = get_redis_connection('default')
+								# Use process id as value for debugging
+								redis_set = conn.set(leader_key, owner, nx=True, ex=leader_lock_timeout)
+								logger.info("ASGI startup: raw redis SET NX returned = %s", redis_set)
+								if redis_set:
+									# ensure Django cache layer reflects the lock too
+									try:
+										cache.set(leader_key, True, leader_lock_timeout)
+									except Exception:
+										logger.debug("ASGI startup: failed to set leader key in cache layer after redis set")
+									got_lock = True
+							except Exception as e:
+								logger.debug("ASGI startup: raw redis SET NX attempt failed: %s", e)
+
+						# If we've acquired the lock, set up a renew (heartbeat) loop and store owner id on mgr
+						if got_lock:
+							# determine owner id
+							import socket
+							owner = f"{socket.gethostname()}:{os.getpid()}"
+							# attach owner to manager for shutdown/inspection
+							try:
+								mgr._leader_owner = owner
+							except Exception:
+								pass
+							# ensure redis conn exists for renew loop
+							try:
+								from django_redis import get_redis_connection
+								renew_conn = get_redis_connection('default')
+							except Exception:
+								renew_conn = None
+
+							# start renew loop to extend TTL periodically
+							async def _renew_loop(conn, key, owner_id, ttl, mgr_ref):
+								interval = max(5, int(ttl / 2))
+								try:
+									while True:
+										await asyncio.sleep(interval)
+										try:
+											if conn is None:
+												# try to re-acquire a connection
+												from django_redis import get_redis_connection as _grc
+												conn = _grc('default')
+											# check ownership
+											val = conn.get(key)
+											if val is None or val.decode() != owner_id:
+												# lost ownership
+												logger.info("Leader renew loop: lost ownership of key %s (val=%s)", key, val)
+												break
+											# extend TTL
+											conn.expire(key, ttl)
+										except Exception:
+											logger.debug("Leader renew loop: renew attempt failed, will retry")
+								except asyncio.CancelledError:
+									logger.info("Leader renew loop cancelled for key %s", key)
+									return
+								logger.info("Leader renew loop exiting for key %s", key)
+							# attach task and conn to mgr for cleanup
+							try:
+								mgr._leader_renew_task = asyncio.create_task(_renew_loop(renew_conn, leader_key, owner, leader_lock_timeout, mgr))
+							except Exception:
+								logger.debug("ASGI startup: failed to start leader renew task")
+					
+						# If using django-redis, also inspect raw Redis key for TTL/value
+						try:
+							from django_redis import get_redis_connection
+							conn = get_redis_connection("default")
+							try:
+								val = conn.get(leader_key)
+								ttl = conn.ttl(leader_key)
+								logger.info("ASGI startup: redis raw key val=%s ttl=%s", val, ttl)
+							except Exception:
+								logger.info("ASGI startup: redis key inspection failed")
+						except Exception:
+							# not a django-redis backend or inspection failed
+							pass
+						
+						if got_lock:
+							try:
+								mgr.start_scheduler(interval_minutes=10)
+								logger.info("ASGI startup: ✅ acquired leader lock and started scheduler in this worker (PID %d)", os.getpid())
+							except Exception as e:
+								logger.exception("ASGI startup: scheduler start failed: %s", e)
+								# Release lock on failure so another worker can try
+								cache.delete(leader_key)
+						else:
+							logger.info("ASGI startup: ⏭️  did not acquire leader lock; scheduler not started in this worker (PID %d)", os.getpid())
+					except Exception as e:
+						logger.error("ASGI startup: leader lock check failed: %s", e, exc_info=True)
+
 					# Set as global manager
 					from proxy.utils import proxy_manager as pm_module
 					pm_module._global_manager = mgr
@@ -72,13 +196,13 @@ async def application(scope, receive, send):
 						logger.info("ASGI startup: proxy manager attached to AppConfig")
 					except Exception:
 						logger.warning("ASGI startup: failed to attach manager to AppConfig")
-						
+
 					logger.info("ASGI startup: proxy manager initialization complete")
 				except Exception as e:
 					# Log but don't fail - manager can be initialized on first request
 					import logging
 					logging.getLogger('proxy').error("ASGI startup: manager initialization failed: %s", e, exc_info=True)
-				
+
 				await send({'type': 'lifespan.startup.complete'})
 			elif message['type'] == 'lifespan.shutdown':
 				# Clean up resources on shutdown
@@ -90,12 +214,40 @@ async def application(scope, receive, send):
 					mgr = get_global_manager()
 					if mgr:
 						logger.info("ASGI shutdown: closing proxy manager...")
+						# If this process held the leader lock, attempt to release it
+						try:
+							leader_key = "ha_manager_leader"
+							owner = getattr(mgr, '_leader_owner', None)
+							renew_task = getattr(mgr, '_leader_renew_task', None)
+							if renew_task:
+								try:
+									renew_task.cancel()
+								except Exception:
+									pass
+							if owner:
+								try:
+									from django_redis import get_redis_connection
+									conn = get_redis_connection('default')
+									val = conn.get(leader_key)
+									if val and val.decode() == owner:
+										conn.delete(leader_key)
+										try:
+											from django.core.cache import cache
+											cache.delete(leader_key)
+										except Exception:
+											pass
+									logger.info("ASGI shutdown: released leader lock (owner=%s)", owner)
+								except Exception:
+									logger.debug("ASGI shutdown: failed to release leader lock cleanly")
+						except Exception:
+							logger.debug("ASGI shutdown: leader lock release check failed")
+						# Close manager resources
 						await mgr.close()
 						logger.info("ASGI shutdown: proxy manager closed")
 				except Exception as e:
 					import logging
 					logging.getLogger('proxy').warning("ASGI shutdown: cleanup failed: %s", e)
-				
+
 				await send({'type': 'lifespan.shutdown.complete'})
 				return
 	else:

@@ -529,4 +529,107 @@ def proxy_tags(request):
 
     return JsonResponse({"models": models_list}, safe=False)
 
-    return JsonResponse({"models": models_list}, safe=False)
+
+@extend_schema(
+    tags=['Proxy'],
+    responses={200: {'type': 'object'}},
+    description='List running models loaded into memory on all nodes (aggregated).'
+)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def proxy_ps(request):
+    mgr = _get_manager()
+    if mgr is None:
+        return JsonResponse({"error": "no proxy nodes configured"}, status=503)
+
+    from django.core.cache import cache
+    active = cache.get(mgr.ACTIVE_POOL_KEY, [])
+    standby = cache.get(mgr.STANDBY_POOL_KEY, [])
+    all_nodes = list({*active, *standby})
+
+    if not all_nodes:
+        return JsonResponse({"error": "no nodes available"}, status=503)
+
+    import httpx
+    # fetch runtime ps from nodes
+    async def fetch_node_ps(addr):
+        url = addr.rstrip('/') + '/api/ps'
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.get(url)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    return data.get('models', []) if isinstance(data, dict) else []
+        except Exception as e:
+            logger.debug('failed to fetch /api/ps from %s: %s', addr, e)
+        return []
+
+    async def fetch_all():
+        tasks = [fetch_node_ps(addr) for addr in all_nodes]
+        return await asyncio.gather(*tasks, return_exceptions=True)
+
+    results = async_to_sync(fetch_all)()
+
+    # Build map of runtime loaded models -> set of node addrs
+    running_map: dict[str, list[str]] = {}
+    for idx, res in enumerate(results):
+        src_addr = all_nodes[idx]
+        if isinstance(res, list):
+            for m in res:
+                if not isinstance(m, dict):
+                    continue
+                key = m.get('model') or m.get('name')
+                if not key:
+                    continue
+                running_map.setdefault(key, []).append(src_addr)
+
+    # Read DB node.available_models for all nodes in DB
+    try:
+        from proxy.models import node as NodeModel
+        db_nodes = NodeModel.objects.filter(active=True)
+    except Exception:
+        db_nodes = []
+
+    # Map model -> list of db nodes that report it
+    db_map: dict[str, list[str]] = {}
+    addr_map: dict[str, str] = {}
+    for n in db_nodes:
+        addr = (n.address or '').strip()
+        if n.port and ':' not in addr.split('/')[-1]:
+            addr = f"{addr}:{n.port}"
+        if addr and not addr.startswith('http'):
+            addr = 'http://' + addr
+        addr_map[n.id] = addr
+        try:
+            for model_name in (n.available_models or []):
+                db_map.setdefault(model_name, []).append(addr)
+        except Exception:
+            pass
+
+    # Aggregate final model list (union of DB-reported models)
+    final_models = []
+    seen = set()
+    for model_name, db_nodes_list in db_map.items():
+        if model_name in seen:
+            continue
+        seen.add(model_name)
+        running_on = running_map.get(model_name, [])
+        final_models.append({
+            'model': model_name,
+            'db_nodes': db_nodes_list,
+            'running_on': running_on,
+        })
+
+    # Also include any runtime-only models (not in DB.available_models)
+    for model_name, run_nodes in running_map.items():
+        if model_name in seen:
+            continue
+        seen.add(model_name)
+        final_models.append({
+            'model': model_name,
+            'db_nodes': [],
+            'running_on': run_nodes,
+        })
+
+    final_models.sort(key=lambda x: x.get('model') or '')
+    return JsonResponse({'models': final_models}, safe=False)
