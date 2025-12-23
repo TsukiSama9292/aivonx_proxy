@@ -159,6 +159,24 @@ async def application(scope, receive, send):
 								mgr._leader_renew_task = asyncio.create_task(_renew_loop(renew_conn, leader_key, owner, leader_lock_timeout, mgr))
 							except Exception:
 								logger.debug("ASGI startup: failed to start leader renew task")
+							# After acquiring lock, ensure this leader populates caches (DB refresh + health/models)
+							try:
+								logger.info("ASGI startup: leader acquired - performing post-lock refreshes")
+								# refresh DB-backed node list (async)
+								try:
+									await mgr._refresh_from_db_async()
+								except Exception:
+									logger.debug("ASGI startup: _refresh_from_db_async failed after lock")
+								try:
+									await mgr.refresh_models_all()
+								except Exception:
+									logger.debug("ASGI startup: refresh_models_all failed after lock")
+								try:
+									await mgr.health_check_all()
+								except Exception:
+									logger.debug("ASGI startup: health_check_all failed after lock")
+							except Exception:
+								logger.debug("ASGI startup: post-lock refresh sequence failed")
 					
 						# If using django-redis, also inspect raw Redis key for TTL/value
 						try:
