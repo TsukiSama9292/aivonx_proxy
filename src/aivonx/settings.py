@@ -84,8 +84,12 @@ ROOT_URLCONF = 'aivonx.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'ui' / 'templates'],
-        'APP_DIRS': True,
+        'DIRS': [
+            BASE_DIR / 'ui' / 'templates',
+            BASE_DIR / 'proxy' / 'templates',
+            BASE_DIR / 'logviewer' / 'templates',
+        ],
+        'APP_DIRS': False,
         'OPTIONS': {
             'context_processors': [
                 'django.template.context_processors.request',
