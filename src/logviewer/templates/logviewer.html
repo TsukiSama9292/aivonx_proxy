@@ -9,59 +9,66 @@
 {% endblock %}
 
 {% block content %}
-<section class="card">
-  <h2>Logs Viewer</h2>
-  <form id="logs-search" onsubmit="return false;" style="display:flex;gap:8px;flex-wrap:wrap;align-items:end">
-    <div style="flex:1;min-width:180px">
-      <label for="q-query">Query</label>
-      <input id="q-query" name="query" placeholder="message contains...">
+<section class="card shadow-sm">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h2 class="h4 mb-0">Logs Viewer</h2>
     </div>
-    <div style="width:140px">
-      <label for="q-level">Level</label>
-      <select id="q-level" name="level">
-        <option value="">Any</option>
-        <option>DEBUG</option>
-        <option>INFO</option>
-        <option>WARNING</option>
-        <option>ERROR</option>
-        <option>CRITICAL</option>
-      </select>
-    </div>
-    <div style="width:140px">
-      <label for="q-source">Source</label>
-      <select id="q-source" name="source">
-        <option value="django">django</option>
-        <option value="proxy">proxy</option>
-      </select>
-    </div>
-    <div style="width:120px">
-      <label for="q-limit">Limit</label>
-      <input id="q-limit" name="limit" type="number" value="100" min="1" max="1000">
-    </div>
-    <div>
-      <button id="search-btn">Search</button>
-    </div>
-  </form>
-  <div id="logs-results" style="margin-top:12px">
-    <div style="display:flex;justify-content:space-between;align-items:center">
-      <div>Showing <span id="display-range">0-0</span> of <strong id="display-count">0</strong></div>
-      <div>
-        <button id="prev-btn">Prev</button>
-        <button id="next-btn">Next</button>
+    <form id="logs-search" class="row g-3 justify-content-between align-items-end" onsubmit="return false;">
+      <div class="col-12 col-md-6 col-lg-4">
+        <label class="form-label" for="q-query">Query</label>
+        <input id="q-query" name="query" class="form-control" placeholder="message contains...">
+      </div>
+      <div class="col-6 col-md-3 col-lg-2">
+        <label class="form-label" for="q-level">Level</label>
+        <select id="q-level" name="level" class="form-select">
+          <option value="">Any</option>
+          <option>DEBUG</option>
+          <option>INFO</option>
+          <option>WARNING</option>
+          <option>ERROR</option>
+          <option>CRITICAL</option>
+        </select>
+      </div>
+      <div class="col-6 col-md-3 col-lg-2">
+        <label class="form-label" for="q-source">Source</label>
+        <select id="q-source" name="source" class="form-select">
+          <option value="django">django</option>
+          <option value="proxy">proxy</option>
+        </select>
+      </div>
+      <div class="col-6 col-md-3 col-lg-2">
+        <label class="form-label" for="q-limit">Limit</label>
+        <input id="q-limit" name="limit" type="number" value="100" min="1" max="1000" class="form-control">
+      </div>
+      <div class="col-12 col-md-auto">
+        <button type="button" id="search-btn" class="btn btn-primary w-100">Search</button>
+      </div>
+    </form>
+
+    <div id="logs-results" class="mt-4">
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+        <div class="text-muted">Showing <span id="display-range">0-0</span> of <strong id="display-count">0</strong></div>
+        <div class="btn-group" role="group">
+          <button type="button" id="prev-btn" class="btn btn-outline-secondary btn-sm">Prev</button>
+          <button type="button" id="next-btn" class="btn btn-outline-secondary btn-sm">Next</button>
+        </div>
+      </div>
+      <div class="table-responsive">
+        <table id="logs-table" class="table table-striped table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>#</th>
+              <th>Time</th>
+              <th>Level</th>
+              <th>Logger</th>
+              <th>Message</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
       </div>
     </div>
-    <table id="logs-table" class="nodes" style="width:100%">
-      <thead>
-        <tr>
-          <th>Num</th>
-          <th>Time</th>
-          <th>Level</th>
-          <th>Logger</th>
-          <th>Message</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
   </div>
 </section>
 {% endblock %}

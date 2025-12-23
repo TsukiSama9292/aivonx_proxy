@@ -43,8 +43,17 @@
 
     const rows = items.map((it, i) => {
       const number = state.offset + i + 1;
-      const level = it?.level || '';
-      const levelClass = `level-${String(level).toUpperCase()}`;
+      const level = (it?.level || '').toUpperCase();
+      const badgeClass =
+        level === 'CRITICAL' || level === 'ERROR'
+          ? 'bg-danger'
+          : level === 'WARNING'
+            ? 'bg-warning text-dark'
+            : level === 'INFO'
+              ? 'bg-info text-dark'
+              : level === 'DEBUG'
+                ? 'bg-success'
+                : 'bg-secondary';
 
       return $('<tr>')
         .append($('<td>').text(number))
@@ -52,14 +61,13 @@
         .append(
           $('<td>').append(
             $('<span>')
-              .addClass(`level-badge ${levelClass}`)
-              .text(level)
+              .addClass(`badge ${badgeClass} text-uppercase fw-semibold`)
+              .text(level || 'N/A')
           )
         )
         .append($('<td>').text(it?.logger || ''))
         .append(
           $('<td>')
-            .css('text-align', 'left')
             .text(it?.message || '')
         );
     });

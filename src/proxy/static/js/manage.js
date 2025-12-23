@@ -11,8 +11,7 @@ const openAddBtn = document.getElementById('open-add-node');
 const closeBtn = document.getElementById('modal-close');
 
 function openModal(mode, data) {
-  modal.style.display = 'flex';
-  modal.setAttribute('aria-hidden', 'false');
+  modal.classList.add('is-active');
   if (mode === 'add') {
     modalTitle.textContent = 'Add Node';
     modalAction.value = 'add_node';
@@ -31,8 +30,7 @@ function openModal(mode, data) {
 }
 
 function closeModal() {
-  modal.style.display = 'none';
-  modal.setAttribute('aria-hidden', 'true');
+  modal.classList.remove('is-active');
 }
 
 document.querySelectorAll('.edit-node-btn').forEach(btn => {
@@ -94,15 +92,13 @@ function renderNodeDetails(nodeData) {
 }
 
 function openDetailsModal(nodeId) {
-  detailsModal.style.display = 'flex';
-  detailsModal.setAttribute('aria-hidden', 'false');
+  detailsModal.classList.add('is-active');
   detailsContent.innerHTML = '<div class="details-loading">Loading...</div>';
   fetchNodeDetails(nodeId).then(data => renderNodeDetails(data));
 }
 
 function closeDetailsModal() {
-  detailsModal.style.display = 'none';
-  detailsModal.setAttribute('aria-hidden', 'true');
+  detailsModal.classList.remove('is-active');
 }
 
 document.querySelectorAll('.details-node-btn').forEach(btn => {
@@ -158,19 +154,18 @@ function renderPullNodeInfo(nodeData) {
 function openPullModal(nodeId, nodeName) {
   currentPullNodeId = nodeId;
   currentPullNodeName = nodeName;
-  pullModal.style.display = 'flex';
-  pullModal.setAttribute('aria-hidden', 'false');
+  pullModal.classList.add('is-active');
   pullModalTitle.textContent = `Pull Model to ${nodeName}`;
   pullModelInput.value = '';
-  pullStatus.style.display = 'none';
+  pullStatus.className = 'pull-status alert d-none';
+  pullStatus.textContent = '';
   pullSubmitBtn.disabled = false;
   pullNodeInfo.innerHTML = '<div class="pull-info-loading">Loading node information...</div>';
   fetchNodeInfo(nodeId).then(data => renderPullNodeInfo(data));
 }
 
 function closePullModal() {
-  pullModal.style.display = 'none';
-  pullModal.setAttribute('aria-hidden', 'true');
+  pullModal.classList.remove('is-active');
   currentPullNodeId = null;
   currentPullNodeName = null;
 }
@@ -178,15 +173,15 @@ function closePullModal() {
 async function pullModelToNode() {
   const modelName = pullModelInput.value.trim();
   if (!modelName) {
-    pullStatus.style.display = 'block';
-    pullStatus.className = 'pull-status pull-error';
+    pullStatus.classList.remove('d-none');
+    pullStatus.className = 'pull-status pull-error alert alert-danger';
     pullStatus.textContent = 'Please enter a model name';
     return;
   }
 
   pullSubmitBtn.disabled = true;
-  pullStatus.style.display = 'block';
-  pullStatus.className = 'pull-status pull-loading';
+  pullStatus.classList.remove('d-none');
+  pullStatus.className = 'pull-status pull-loading alert alert-info';
   pullStatus.textContent = 'Pulling model... This may take a few minutes.';
 
   try {
@@ -205,21 +200,21 @@ async function pullModelToNode() {
     if (response.ok && data.results && data.results.length > 0) {
       const result = data.results[0];
       if (result.status === 'success') {
-        pullStatus.className = 'pull-status pull-success';
+        pullStatus.className = 'pull-status pull-success alert alert-success';
         pullStatus.textContent = `✓ ${result.message}`;
         setTimeout(() => closePullModal(), 2000);
       } else {
-        pullStatus.className = 'pull-status pull-error';
+        pullStatus.className = 'pull-status pull-error alert alert-danger';
         pullStatus.textContent = `✗ ${result.message}`;
         pullSubmitBtn.disabled = false;
       }
     } else {
-      pullStatus.className = 'pull-status pull-error';
+      pullStatus.className = 'pull-status pull-error alert alert-danger';
       pullStatus.textContent = `✗ ${data.error || 'Failed to pull model'}`;
       pullSubmitBtn.disabled = false;
     }
   } catch (error) {
-    pullStatus.className = 'pull-status pull-error';
+    pullStatus.className = 'pull-status pull-error alert alert-danger';
     pullStatus.textContent = `✗ Error: ${error.message}`;
     pullSubmitBtn.disabled = false;
   }
@@ -292,7 +287,7 @@ function renderNodesPreview(nodes) {
 
   if (!nodes || nodes.length === 0) {
     previewDiv.innerHTML = '<div class="preview-error">No active nodes available</div>';
-    previewDiv.style.display = 'block';
+    previewDiv.classList.remove('d-none');
     return;
   }
 
@@ -310,13 +305,13 @@ function renderNodesPreview(nodes) {
       </div>
     </div>
   `).join('');
-  previewDiv.style.display = 'block';
+  previewDiv.classList.remove('d-none');
 }
 
 document.getElementById('show-nodes-preview').addEventListener('click', async () => {
   const previewDiv = document.getElementById('nodes-preview');
   previewDiv.innerHTML = '<div class="loading-text">Loading nodes status...</div>';
-  previewDiv.style.display = 'block';
+  previewDiv.classList.remove('d-none');
   renderNodesPreview(await fetchAllNodesStatus());
 });
 
@@ -326,15 +321,15 @@ document.getElementById('pull-all-submit').addEventListener('click', async () =>
   const submitBtn = document.getElementById('pull-all-submit');
 
   if (!modelName) {
-    statusDiv.style.display = 'block';
-    statusDiv.className = 'pull-status pull-error';
+    statusDiv.classList.remove('d-none');
+    statusDiv.className = 'pull-status pull-error alert alert-danger';
     statusDiv.textContent = 'Please enter a model name';
     return;
   }
 
   submitBtn.disabled = true;
-  statusDiv.style.display = 'block';
-  statusDiv.className = 'pull-status pull-loading';
+  statusDiv.classList.remove('d-none');
+  statusDiv.className = 'pull-status pull-loading alert alert-info';
   statusDiv.textContent = 'Pulling model to all nodes... This may take several minutes.';
 
   try {
@@ -354,7 +349,7 @@ document.getElementById('pull-all-submit').addEventListener('click', async () =>
       const successCount = data.results.filter(r => r.status === 'success').length;
       const totalCount = data.results.length;
 
-      statusDiv.className = successCount === totalCount ? 'pull-status pull-success' : 'pull-status pull-error';
+      statusDiv.className = successCount === totalCount ? 'pull-status pull-success alert alert-success' : 'pull-status pull-error alert alert-danger';
       statusDiv.textContent = successCount === totalCount
         ? `✓ Successfully pulled to all ${totalCount} nodes`
         : `⚠ Pulled to ${successCount}/${totalCount} nodes. Some failed.`;
@@ -365,12 +360,12 @@ document.getElementById('pull-all-submit').addEventListener('click', async () =>
 
       submitBtn.disabled = false;
     } else {
-      statusDiv.className = 'pull-status pull-error';
+      statusDiv.className = 'pull-status pull-error alert alert-danger';
       statusDiv.textContent = `✗ ${data.error || 'Failed to pull model'}`;
       submitBtn.disabled = false;
     }
   } catch (error) {
-    statusDiv.className = 'pull-status pull-error';
+    statusDiv.className = 'pull-status pull-error alert alert-danger';
     statusDiv.textContent = `✗ Error: ${error.message}`;
     submitBtn.disabled = false;
   }
