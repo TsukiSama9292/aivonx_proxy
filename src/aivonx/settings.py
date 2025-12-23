@@ -161,9 +161,10 @@ PROXY_LOG_JSON_PATH = str(BASE_DIR / 'logs' / 'proxy.json')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# After login redirect to the proxy management UI
+# After login/logout redirect handling
+LOGIN_URL = '/'
 LOGIN_REDIRECT_URL = '/ui/manage'
-LOGOUT_REDIRECT_URL = ''
+LOGOUT_REDIRECT_URL = '/'
 
 REST_FRAMEWORK = {
     "PAGE_SIZE": 100, # List API 支援分頁時，每頁只傳回 100 筆
