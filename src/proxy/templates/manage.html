@@ -1,0 +1,186 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Manage Proxy{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/manage.css' %}">
+{% endblock %}
+
+{% block content %}
+<!-- 1. Proxy Configuration Section -->
+<section class="card">
+  <h2>⚙️ Proxy Configuration</h2>
+  <form method="post">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="update_config">
+    <div class="form-row">
+      <label for="id_strategy">Strategy</label>
+      {{ config_form.strategy }}
+    </div>
+    <div class="form-row">
+      <button type="submit">Save Config</button>
+    </div>
+  </form>
+</section>
+
+<!-- 2. Overall Dashboard Section -->
+<section class="card">
+  <h2>📊 Overall Dashboard</h2>
+
+  <div class="dashboard-grid">
+    <!-- Available Models Card -->
+    <div class="dashboard-card">
+      <div class="dashboard-card-header">
+        <h3>Available Models</h3>
+        <button id="refresh-models" class="icon-btn">🔄</button>
+      </div>
+      <div class="model-count-display">
+        <div class="big-number" id="model-count">0</div>
+        <div class="count-label">Total Models</div>
+      </div>
+      <div class="models-scroll-container">
+        <div id="models-list" class="models-list">
+          <div class="loading-text">Loading...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pull to All Nodes Card -->
+    <div class="dashboard-card">
+      <div class="dashboard-card-header">
+        <h3>Pull Model to All Nodes</h3>
+      </div>
+      <div class="pull-all-form">
+        <div class="form-row">
+          <label for="pull-all-model-input">Model Name</label>
+          <input id="pull-all-model-input" type="text" list="model-suggestions-all" placeholder="Enter or select model name" />
+          <datalist id="model-suggestions-all">
+            <option value="gpt-oss:20b">gpt-oss:20b</option>
+            <option value="embeddinggemma:300m">embeddinggemma:300m</option>
+          </datalist>
+        </div>
+        <button id="show-nodes-preview" class="btn-secondary">Preview Nodes Status</button>
+        <div id="nodes-preview" class="nodes-preview" style="display:none"></div>
+        <button id="pull-all-submit" class="btn-primary">Pull to All Active Nodes</button>
+        <div id="pull-all-status" class="pull-status" style="display:none"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 3. Nodes Dashboard Section -->
+<section class="card">
+  <h2>🖥️ Nodes Dashboard</h2>
+  <div class="nodes-header">
+    <button id="open-add-node" class="add-node-btn">+ Add Node</button>
+  </div>
+  <table class="nodes">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Name</th>
+        <th>Address</th>
+        <th>Port</th>
+        <th>Active</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for n in nodes %}
+      <tr>
+        <td>{{ n.id }}</td>
+        <td>{{ n.name }}</td>
+        <td>{{ n.address }}</td>
+        <td>{{ n.port }}</td>
+        <td>{{ n.active }}</td>
+        <td>
+          <button class="details-node-btn" data-id="{{ n.id }}">Details</button>
+          &nbsp;
+          <button class="pull-node-btn" data-id="{{ n.id }}" data-name="{{ n.name }}">Pull</button>
+          &nbsp;
+          <button class="edit-node-btn" data-id="{{ n.id }}" data-name="{{ n.name }}" data-address="{{ n.address }}" data-port="{{ n.port }}">Update</button>
+          &nbsp;
+          <form method="post" style="display:inline">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="delete_node">
+            <input type="hidden" name="node_id" value="{{ n.id }}">
+            <button type="submit" class="btn-danger">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="6">No nodes configured</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<!-- Modals -->
+<div id="node-modal" class="modal" aria-hidden="true" style="display:none">
+  <div class="modal-content">
+    <button id="modal-close" class="modal-close">×</button>
+    <h3 id="modal-title">Edit Node</h3>
+    <form id="modal-form" method="post">
+      {% csrf_token %}
+      <input type="hidden" name="node_id" id="modal-node-id" value="">
+      <input type="hidden" name="action" id="modal-action" value="">
+      <div class="form-row">
+        <label for="modal-name">Name</label>
+        <input id="modal-name" type="text" name="name" required />
+      </div>
+      <div class="form-row">
+        <label for="modal-address">Domain / IP</label>
+        <input id="modal-address" type="text" name="address" required />
+      </div>
+      <div class="form-row">
+        <label for="modal-port">Port</label>
+        <input id="modal-port" type="number" name="port" required />
+      </div>
+      <div class="form-row">
+        <button type="submit" id="modal-submit">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="details-modal" class="modal" aria-hidden="true" style="display:none">
+  <div class="modal-content modal-content-wide">
+    <button id="details-modal-close" class="modal-close">×</button>
+    <h3 id="details-modal-title">Node Details</h3>
+    <div id="details-content">
+      <div class="details-loading">Loading...</div>
+    </div>
+  </div>
+</div>
+
+<div id="pull-modal" class="modal" aria-hidden="true" style="display:none">
+  <div class="modal-content modal-content-wide">
+    <button id="pull-modal-close" class="modal-close">×</button>
+    <h3 id="pull-modal-title">Pull Model</h3>
+    <div id="pull-modal-body">
+      <div id="pull-node-info" class="pull-node-info">
+        <div class="pull-info-loading">Loading node information...</div>
+      </div>
+      <div class="form-row">
+        <label for="pull-model-input">Model Name</label>
+        <input id="pull-model-input" type="text" list="model-suggestions" placeholder="Enter or select model name" required />
+        <datalist id="model-suggestions">
+          <option value="gpt-oss:20b">gpt-oss:20b</option>
+          <option value="embeddinggemma:300m">embeddinggemma:300m</option>
+        </datalist>
+      </div>
+      <div id="pull-status" class="pull-status" style="display:none"></div>
+      <div class="form-row">
+        <button id="pull-submit" class="pull-submit-btn">Pull Model</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_body %}
+<script src="{% static 'js/manage.js' %}"></script>
+{% endblock %}

@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.urls import reverse
+from django.urls import reverse, reverse_lazy
 from django.contrib.auth.views import LoginView, LogoutView
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_protect
@@ -10,18 +10,20 @@ from .forms import NodeForm, ProxyConfigForm
 
 
 class ProxyLoginView(LoginView):
-    template_name = 'proxy/login.html'
+    template_name = 'login.html'
+    redirect_authenticated_user = True
+    success_url = reverse_lazy('proxy_ui_manage')
 
 
 class ProxyLogoutView(LogoutView):
-    next_page = ''
+    next_page = reverse_lazy('proxy_ui_login')
 
 
 def proxy_logout_view(request):
     """Log out user and redirect to proxy UI login page.
 
     Using an explicit function ensures we always redirect to the
-    intended login URL (``).
+    intended login URL.
     """
     from django.contrib.auth import logout
     from django.shortcuts import redirect
@@ -80,7 +82,7 @@ def manage(request):
     node_form = NodeForm()
     config_form = ProxyConfigForm(instance=cfg)
 
-    return render(request, 'proxy/manage.html', {
+    return render(request, 'manage.html', {
         'nodes': nodes,
         'node_form': node_form,
         'config_form': config_form,
