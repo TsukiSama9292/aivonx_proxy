@@ -84,8 +84,12 @@ ROOT_URLCONF = 'aivonx.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
-        'APP_DIRS': True,
+        'DIRS': [
+            BASE_DIR / 'ui' / 'templates',
+            BASE_DIR / 'proxy' / 'templates',
+            BASE_DIR / 'logviewer' / 'templates',
+        ],
+        'APP_DIRS': False,
         'OPTIONS': {
             'context_processors': [
                 'django.template.context_processors.request',
@@ -158,6 +162,7 @@ STATIC_URL = '/static/'
 # Directory where `collectstatic` will gather files for production
 # Required when using the staticfiles app and running `collectstatic`.
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_DIRS = [BASE_DIR / 'ui' / 'static']
 
 # Path to JSON log file used by the logviewer API
 LOG_JSON_PATH = str(BASE_DIR / 'logs' / 'django.json')
@@ -169,9 +174,10 @@ PROXY_LOG_JSON_PATH = str(BASE_DIR / 'logs' / 'proxy.json')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# After login redirect to the proxy management UI
+# After login/logout redirect handling
+LOGIN_URL = '/'
 LOGIN_REDIRECT_URL = '/ui/manage'
-LOGOUT_REDIRECT_URL = ''
+LOGOUT_REDIRECT_URL = '/'
 
 REST_FRAMEWORK = {
     "PAGE_SIZE": 100, # List API 支援分頁時，每頁只傳回 100 筆
