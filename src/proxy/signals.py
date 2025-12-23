@@ -18,14 +18,36 @@ def node_saved(sender, instance, **kwargs):
             logger.debug("signals: no global manager available to refresh on node save")
             return
         try:
-            mgr.refresh_from_db()
-            logger.info("signals: refreshed HA manager from DB after node save (id=%s)", getattr(instance, 'id', None))
-            # Notify leader to immediately perform health/models refresh.
+            # First, notify the leader process to pick up an immediate refresh.
             try:
                 conn = get_redis_connection('default')
                 conn.set('ha_refresh_request', str(time.time()), ex=30)
             except Exception:
                 logger.debug("signals: failed to write ha_refresh_request to redis")
+
+            # If this process happens to be the leader, perform the heavier
+            # refresh work locally to reduce latency (models + health).
+            try:
+                if getattr(mgr, '_is_leader', False):
+                    try:
+                        # synchronous calls are ok from signal handlers
+                        mgr.refresh_from_db()
+                    except Exception:
+                        logger.debug("signals: local refresh_from_db failed in leader")
+                    try:
+                        import asyncio
+                        asyncio.run(mgr.refresh_models_all())
+                    except Exception:
+                        logger.debug("signals: local refresh_models_all failed in leader")
+                    try:
+                        import asyncio
+                        asyncio.run(mgr.health_check_all())
+                    except Exception:
+                        logger.debug("signals: local health_check_all failed in leader")
+            except Exception:
+                # best-effort; don't block signal handling
+                logger.debug("signals: error while attempting leader-local refresh")
+            logger.info("signals: notified leader to refresh after node save (id=%s)", getattr(instance, 'id', None))
         except Exception as e:
             logger.exception("signals: failed to refresh HA manager after node save: %s", e)
     except Exception:
@@ -41,14 +63,33 @@ def node_deleted(sender, instance, **kwargs):
             logger.debug("signals: no global manager available to refresh on node delete")
             return
         try:
-            mgr.refresh_from_db()
-            logger.info("signals: refreshed HA manager from DB after node delete (id=%s)", getattr(instance, 'id', None))
-            # Notify leader to immediately perform health/models refresh.
+            # Notify leader first
             try:
                 conn = get_redis_connection('default')
                 conn.set('ha_refresh_request', str(time.time()), ex=30)
             except Exception:
                 logger.debug("signals: failed to write ha_refresh_request to redis")
+
+            # If leader, perform refresh locally for immediate consistency
+            try:
+                if getattr(mgr, '_is_leader', False):
+                    try:
+                        mgr.refresh_from_db()
+                    except Exception:
+                        logger.debug("signals: local refresh_from_db failed in leader")
+                    try:
+                        import asyncio
+                        asyncio.run(mgr.refresh_models_all())
+                    except Exception:
+                        logger.debug("signals: local refresh_models_all failed in leader")
+                    try:
+                        import asyncio
+                        asyncio.run(mgr.health_check_all())
+                    except Exception:
+                        logger.debug("signals: local health_check_all failed in leader")
+            except Exception:
+                logger.debug("signals: error while attempting leader-local refresh")
+            logger.info("signals: notified leader to refresh after node delete (id=%s)", getattr(instance, 'id', None))
         except Exception as e:
             logger.exception("signals: failed to refresh HA manager after node delete: %s", e)
     except Exception:

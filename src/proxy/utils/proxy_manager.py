@@ -100,9 +100,10 @@ class HAProxyManager:
             latency = time.perf_counter() - t0
             # consider node healthy for any non-5xx response (some upstreams return 404 for /api/health)
             ok = 0 <= getattr(r, 'status_code', 500) < 500
+            logger.debug("ping %s: status=%s latency=%.3fs ok=%s", addr, getattr(r, 'status_code', 'N/A'), latency, ok)
             return ok, latency
         except Exception as e:
-            logger.debug("ping failed for %s: %s", addr, e)
+            logger.warning("ping failed for %s: %s", addr, e)
             return False, float("inf")
 
     async def _refresh_from_db_async(self) -> None:
@@ -125,17 +126,32 @@ class HAProxyManager:
                     if addr:
                         nodes_list.append(addr)
                         id_map[str(n.id)] = addr
-                return nodes_list, id_map
+                
+                # Also load inactive nodes for standby pool
+                standby_list = []
+                qs_inactive = NodeModel.objects.filter(active=False)
+                for n in qs_inactive:
+                    addr = (n.address or "").strip()
+                    if n.port:
+                        if ":" not in addr.split("/")[-1]:
+                            addr = f"{addr}:{n.port}"
+                    if addr and not addr.startswith("http"):
+                        addr = "http://" + addr
+                    if addr:
+                        standby_list.append(addr)
+                        id_map[str(n.id)] = addr  # include in id_map
+                
+                return nodes_list, standby_list, id_map
 
-            nodes, id_map = await get_nodes()
+            nodes, standby_nodes, id_map = await get_nodes()
             self.nodes = nodes
             # only the leader should perform cache writes
             if self._can_write_cache():
                 cache.set(self.ACTIVE_POOL_KEY, list(nodes))
+                cache.set(self.STANDBY_POOL_KEY, standby_nodes)
                 cache.set(self.NODE_ID_MAP_KEY, id_map)
-                cache.set(self.STANDBY_POOL_KEY, [])
-            logger.info("HA manager refreshed nodes from DB (async): %s", nodes)
-            logger.debug("refresh_from_db_async: set ACTIVE_POOL_KEY=%s, NODE_ID_MAP_KEY=%s", nodes, id_map)
+            logger.info("HA manager refreshed nodes from DB (async): active=%s, standby=%s", nodes, standby_nodes)
+            logger.debug("refresh_from_db_async: set ACTIVE_POOL_KEY=%s, STANDBY_POOL_KEY=%s, NODE_ID_MAP_KEY=%s", nodes, standby_nodes, id_map)
         except Exception as e:
             logger.debug("refresh_from_db_async failed: %s", e)
 
@@ -174,15 +190,29 @@ class HAProxyManager:
                     nodes.append(addr)
                     id_map[str(n.id)] = addr
 
+            # Also load inactive nodes into standby pool
+            standby_nodes: List[str] = []
+            qs_inactive = NodeModel.objects.filter(active=False)
+            for n in qs_inactive:
+                addr = (n.address or "").strip()
+                if n.port:
+                    if ":" not in addr.split("/")[-1]:
+                        addr = f"{addr}:{n.port}"
+                if addr and not addr.startswith("http"):
+                    addr = "http://" + addr
+                if addr:
+                    standby_nodes.append(addr)
+                    id_map[str(n.id)] = addr  # include in id_map
+
             # update internal list and set cache active pool (leader only)
             self.nodes = nodes
             if self._can_write_cache():
                 cache.set(self.ACTIVE_POOL_KEY, list(nodes))
                 cache.set(self.NODE_ID_MAP_KEY, id_map)
-                # clear standby when refreshing from DB
-                cache.set(self.STANDBY_POOL_KEY, [])
-            logger.info("HA manager refreshed nodes from DB: %s", nodes)
-            logger.debug("refresh_from_db: set ACTIVE_POOL_KEY=%s, NODE_ID_MAP_KEY=%s", nodes, id_map)
+                # Set standby pool from DB inactive nodes
+                cache.set(self.STANDBY_POOL_KEY, standby_nodes)
+            logger.info("HA manager refreshed nodes from DB: active=%s, standby=%s", nodes, standby_nodes)
+            logger.debug("refresh_from_db: set ACTIVE_POOL_KEY=%s, STANDBY_POOL_KEY=%s, NODE_ID_MAP_KEY=%s", nodes, standby_nodes, id_map)
         except Exception as e:
             logger.debug("refresh_from_db skipped (DB may be unavailable): %s", e)
 
@@ -190,6 +220,7 @@ class HAProxyManager:
         active = cache.get(self.ACTIVE_POOL_KEY, [])
         standby = cache.get(self.STANDBY_POOL_KEY, [])
         all_nodes = list({*active, *standby, *self.nodes})
+        logger.info("health_check_all: checking %d nodes (active=%d, standby=%d)", len(all_nodes), len(active), len(standby))
 
         # import model here so we can persist active state changes
         try:
@@ -203,100 +234,66 @@ class HAProxyManager:
             # latency is a per-node metric; only the leader should persist it
             if self._can_write_cache():
                 cache.set(self.LATENCY_KEY_PREFIX + addr, latency)
+            
+            # Helper to update DB active field (called for both healthy and unhealthy nodes)
+            async def _sync_db_active_state(target_addr: str, should_be_active: bool):
+                """Update DB node.active to match cache pool state."""
+                if NodeModel is None or not self._can_write_cache():
+                    return
+                try:
+                    @sync_to_async
+                    def _update_db():
+                        qs = NodeModel.objects.all()
+                        for n in qs:
+                            a = (n.address or "").strip()
+                            if n.port and ":" not in a.split("/")[-1]:
+                                a = f"{a}:{n.port}"
+                            if a and not a.startswith("http"):
+                                a = "http://" + a
+                            if a == target_addr:
+                                # Only update if the current DB value differs
+                                if n.active != should_be_active:
+                                    NodeModel.objects.filter(pk=n.pk).update(active=should_be_active)
+                                    logger.info("DB sync: node %s active=%s (addr=%s)", n.id, should_be_active, target_addr)
+                                break
+                    await _update_db()
+                except Exception as e:
+                    logger.debug("failed to sync DB active=%s for %s: %s", should_be_active, target_addr, e)
+            
             if ok:
-                # if previously standby, move to active
-                if addr in standby:
+                # Node is healthy: ensure it's in active pool
+                was_in_standby = addr in standby
+                if was_in_standby:
                     standby = [a for a in standby if a != addr]
-                    if addr not in active:
-                        active.append(addr)
-                        if self._can_write_cache():
-                            cache.set(self.ACTIVE_POOL_KEY, active)
-                            cache.set(self.STANDBY_POOL_KEY, standby)
-                        logger.info("Node restored -> active: %s", addr)
-                        # persist to DB: mark node active
-                        if NodeModel is not None and self._can_write_cache():
-                            try:
-                                @sync_to_async
-                                def _mark_active():
-                                    qs = NodeModel.objects.all()
-                                    for n in qs:
-                                        a = (n.address or "").strip()
-                                        if n.port and ":" not in a.split("/")[-1]:
-                                            a = f"{a}:{n.port}"
-                                        if a and not a.startswith("http"):
-                                            a = "http://" + a
-                                        if a == addr:
-                                            NodeModel.objects.filter(pk=n.pk).update(active=True)
-                                            break
-                                try:
-                                    await _mark_active()
-                                except Exception:
-                                    logger.debug("failed to mark node active in DB for %s", addr)
-                            except Exception:
-                                logger.debug("failed scheduling db mark active for %s", addr)
-                else:
-                    # ensure it's in active
-                    if addr not in active:
-                        active.append(addr)
-                        if self._can_write_cache():
-                            cache.set(self.ACTIVE_POOL_KEY, active)
-                        # persist to DB: mark node active
-                        if NodeModel is not None and self._can_write_cache():
-                            try:
-                                @sync_to_async
-                                def _mark_active2():
-                                    qs = NodeModel.objects.all()
-                                    for n in qs:
-                                        a = (n.address or "").strip()
-                                        if n.port and ":" not in a.split("/")[-1]:
-                                            a = f"{a}:{n.port}"
-                                        if a and not a.startswith("http"):
-                                            a = "http://" + a
-                                        if a == addr:
-                                            NodeModel.objects.filter(pk=n.pk).update(active=True)
-                                            break
-                                try:
-                                    await _mark_active2()
-                                except Exception:
-                                    logger.debug("failed to mark node active in DB for %s", addr)
-                            except Exception:
-                                logger.debug("failed scheduling db mark active for %s", addr)
-            else:
-                # move to standby
-                if addr in active:
-                    active = [a for a in active if a != addr]
-                    if addr not in standby:
-                        standby.append(addr)
+                if addr not in active:
+                    active.append(addr)
                     if self._can_write_cache():
                         cache.set(self.ACTIVE_POOL_KEY, active)
                         cache.set(self.STANDBY_POOL_KEY, standby)
+                    if was_in_standby:
+                        logger.info("Node restored -> active: %s", addr)
+                # Always sync DB active=True for healthy nodes (ensure consistency)
+                await _sync_db_active_state(addr, True)
+            else:
+                # Node is unhealthy: ensure it's in standby pool
+                was_in_active = addr in active
+                if was_in_active:
+                    active = [a for a in active if a != addr]
+                if addr not in standby:
+                    standby.append(addr)
+                if self._can_write_cache():
+                    cache.set(self.ACTIVE_POOL_KEY, active)
+                    cache.set(self.STANDBY_POOL_KEY, standby)
+                if was_in_active:
                     logger.warning("Node moved to standby: %s", addr)
-                    # persist to DB: mark node inactive
-                    if NodeModel is not None and self._can_write_cache():
-                        try:
-                            @sync_to_async
-                            def _mark_inactive():
-                                qs = NodeModel.objects.all()
-                                for n in qs:
-                                    a = (n.address or "").strip()
-                                    if n.port and ":" not in a.split("/")[-1]:
-                                        a = f"{a}:{n.port}"
-                                    if a and not a.startswith("http"):
-                                        a = "http://" + a
-                                    if a == addr:
-                                        NodeModel.objects.filter(pk=n.pk).update(active=False)
-                                        break
-                            try:
-                                await _mark_inactive()
-                            except Exception:
-                                logger.debug("failed to mark node inactive in DB for %s", addr)
-                        except Exception:
-                            logger.debug("failed scheduling db mark inactive for %s", addr)
+                # Always sync DB active=False for unhealthy nodes (ensure consistency)
+                await _sync_db_active_state(addr, False)
 
     async def refresh_models_all(self) -> None:
         """Query each known node's `/api/tags` and store available model names.
 
         Stores list under cache key `ha_models:{addr}` and updates DB `node.models`.
+        If a node fails to respond, immediately mark it as unhealthy.
         """
         active = cache.get(self.ACTIVE_POOL_KEY, [])
         standby = cache.get(self.STANDBY_POOL_KEY, [])
@@ -308,11 +305,15 @@ class HAProxyManager:
         except Exception:
             NodeModel = None
 
+        # track nodes that failed during model refresh
+        failed_nodes = []
+
         # query each node with a small retry/backoff
         for addr in all_nodes:
             models_list = []
             url = addr.rstrip("/") + "/api/tags"
             resp = None
+            node_failed = False
             for attempt in range(2):
                 try:
                     import httpx
@@ -321,6 +322,8 @@ class HAProxyManager:
                     break
                 except Exception as e:
                     logger.debug("attempt %d failed for %s: %s", attempt + 1, addr, e)
+                    if attempt == 1:  # last attempt failed
+                        node_failed = True
                     try:
                         await asyncio.sleep(0.2 * (attempt + 1))
                     except Exception:
@@ -337,7 +340,13 @@ class HAProxyManager:
                 except Exception:
                     logger.debug("failed to parse /api/tags from %s", addr)
             else:
-                logger.debug("no /api/tags response from %s (status=%s)", addr, getattr(resp, 'status_code', None))
+                logger.warning("no /api/tags response from %s (status=%s) - marking as failed", addr, getattr(resp, 'status_code', None))
+                node_failed = True
+
+            # If node failed after retries, track it for immediate health status update
+            if node_failed and addr in active:
+                failed_nodes.append(addr)
+                logger.warning("node %s failed during model refresh - will mark as inactive immediately", addr)
 
             # update cache and DB (cache writes only by leader)
             if self._can_write_cache():
@@ -362,8 +371,51 @@ class HAProxyManager:
                 except Exception as e:
                     logger.debug("failed to update node.available_models for %s: %s", addr, e)
 
-        logger.info("model refresh complete")
+        logger.info("model refresh complete (found %d failed nodes)", len(failed_nodes))
 
+        # Immediately move failed nodes to standby and update DB active=False
+        if failed_nodes:
+            can_write = self._can_write_cache()
+            logger.info("attempting to move %d failed nodes to standby (can_write=%s, is_leader=%s)", 
+                       len(failed_nodes), can_write, getattr(self, '_is_leader', False))
+            if not can_write:
+                logger.warning("cannot write cache - skipping immediate standby move for failed nodes")
+            else:
+                logger.info("immediately moving %d failed nodes to standby", len(failed_nodes))
+                active = cache.get(self.ACTIVE_POOL_KEY, [])
+                standby = cache.get(self.STANDBY_POOL_KEY, [])
+                
+                for addr in failed_nodes:
+                    if addr in active:
+                        active = [a for a in active if a != addr]
+                        if addr not in standby:
+                            standby.append(addr)
+                        logger.warning("Node moved to standby (model refresh failure): %s", addr)
+                        
+                        # Update DB active=False immediately
+                        if NodeModel is not None:
+                            try:
+                                @sync_to_async
+                                def _mark_inactive():
+                                    qs = NodeModel.objects.all()
+                                    for n in qs:
+                                        a = (n.address or "").strip()
+                                        if n.port and ":" not in a.split("/")[-1]:
+                                            a = f"{a}:{n.port}"
+                                        if a and not a.startswith("http"):
+                                            a = "http://" + a
+                                        if a == addr:
+                                            if n.active:  # only update if currently active
+                                                NodeModel.objects.filter(pk=n.pk).update(active=False)
+                                                logger.info("DB sync: node %s active=False (addr=%s) due to model refresh failure", n.id, addr)
+                                            break
+                                await _mark_inactive()
+                            except Exception as e:
+                                logger.debug("failed to mark node inactive in DB for %s: %s", addr, e)
+                
+                # Update cache pools
+                cache.set(self.ACTIVE_POOL_KEY, active)
+                cache.set(self.STANDBY_POOL_KEY, standby)
     def choose_node(self, model_name: Optional[str] = None, strategy: Optional[str] = None) -> Optional[str]:
         """Choose a node automatically for a given model_name.
 
@@ -506,7 +558,7 @@ class HAProxyManager:
         if self._can_write_cache():
             cache.set(key, cnt)
 
-    def start_scheduler(self, interval_minutes: int = 10) -> None:
+    def start_scheduler(self, interval_minutes: int = 2) -> None:
         if self._scheduler is not None:
             return
 
@@ -520,7 +572,8 @@ class HAProxyManager:
                 logger.debug("scheduler job error: %s", e)
 
         sched = BackgroundScheduler()
-        sched.add_job(_sync_job, "interval", minutes=interval_minutes)
+        # Run health check immediately on startup, then every interval_minutes
+        sched.add_job(_sync_job, "interval", minutes=interval_minutes, next_run_time=None)
         # schedule model refresh every 1 minute
         def _sync_models_job():
             try:

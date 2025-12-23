@@ -213,20 +213,37 @@ def active_requests(request):
 				}, status=400)
 		
 		# Get all nodes from pools
+		# Get all nodes from pools
 		active_pool = cache.get(mgr.ACTIVE_POOL_KEY, [])
 		standby_pool = cache.get(mgr.STANDBY_POOL_KEY, [])
 		node_id_map = cache.get(mgr.NODE_ID_MAP_KEY, {})
-		
-		# Create reverse mapping: address -> id
-		address_to_id = {addr: int(node_id) for node_id, addr in node_id_map.items()}
+		# defensive: ensure node_id_map is a dict-like structure
+		if not isinstance(node_id_map, dict):
+			node_id_map = {}
+		# Create reverse mapping: address -> id (guard for unexpected shapes)
+		try:
+			address_to_id = {addr: int(node_id) for node_id, addr in node_id_map.items()}
+		except Exception:
+			address_to_id = {}
 		
 		# Get node details from database
 		if filter_node_id:
-			nodes_qs = NodeModel.objects.filter(id=filter_node_id, active=True)
-			if not nodes_qs.exists():
-				return JsonResponse({
-					"error": f"node not found: {filter_node_id}"
-				}, status=404)
+			# Prefer looking up the node by PK even if the `active` flag in DB
+			# might be stale; then ensure the node is managed by this proxy
+			node_obj = NodeModel.objects.filter(pk=filter_node_id).first()
+			if not node_obj:
+				return JsonResponse({"error": f"node not found: {filter_node_id}"}, status=404)
+			# build canonical address for this node
+			addr = (node_obj.address or "").strip()
+			if node_obj.port and ":" not in addr.split("/")[-1]:
+				addr = f"{addr}:{node_obj.port}"
+			if addr and not addr.startswith("http"):
+				addr = "http://" + addr
+			# if this node is not in active or standby pools, treat as not managed/available
+			if addr not in active_pool and addr not in standby_pool:
+				return JsonResponse({"error": f"node not active or not managed: {filter_node_id}"}, status=404)
+			# restrict queryset to the single node we found
+			nodes_qs = NodeModel.objects.filter(pk=filter_node_id)
 		else:
 			nodes_qs = NodeModel.objects.filter(active=True)
 		
@@ -249,6 +266,13 @@ def active_requests(request):
 			active_count = cache.get(mgr._active_count_key(addr), 0)
 			latency = cache.get(mgr.LATENCY_KEY_PREFIX + addr)
 			models = cache.get(mgr.MODELS_KEY_PREFIX + addr, [])
+			# fallback to DB-stored available_models when cache is empty
+			if not models:
+				try:
+					if getattr(node, 'available_models', None):
+						models = node.available_models
+				except Exception:
+					models = []
 			status_str = 'active' if addr in active_pool else 'standby'
 			
 			nodes_data.append({
