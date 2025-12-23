@@ -1,17 +1,101 @@
-body {
-    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-    background: #f6f7fb;
-    color: #222;
-    margin: 0;
+:root {
+    --bg: #f6f7fb;
+    --text: #222;
+    --card-bg: #ffffff;
+    --card-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+    --topbar-bg: #0b5fff;
+    --topbar-text: #ffffff;
+    --primary: #0b5fff;
+    --muted: #666;
+    --input-border: #d0d7df;
+    --btn-bg: #0b5fff;
+    --btn-color: #ffffff;
+    --danger: #c03a2b;
+
+    --danger-bg: #ffecec;
+    --success: #1c7a25;
+    --success-bg: #e9ffef;
+    --link: var(--primary);
+    --table-border: var(--input-border);
+
+    --bs-body-bg: var(--bg);
+    --bs-body-color: var(--text);
+    --bs-border-color: var(--input-border);
+    --bs-link-color: var(--link);
+    --bs-table-border-color: var(--table-border);
+    --bs-card-cap-color: var(--text);
+    --bs-card-cap-bg: var(--card-bg);
+    --table-row-alt: #fefefe;
+    --placeholder: rgba(0, 0, 0, 0.35);
 }
 
+/* dark theme */
+:root[data-theme="dark"] {
+    --bg: #0b0d10;
+    --text: #e6eef8;
+    --card-bg: #0f1316;
+    --card-shadow: 0 1px 6px rgba(0, 0, 0, 0.6);
+    --topbar-bg: #0b3a66;
+    --topbar-text: #e6eef8;
+    --primary: #3aa0ff;
+    --muted: #9aa6b2;
+    --input-border: #26323a;
+    --btn-bg: #1565d8;
+    --btn-color: #ffffff;
+    --danger: #f1654b;
+
+    --danger-bg: #2c0b0e;
+    --success: #75b798;
+    --success-bg: #051b11;
+    --link: var(--primary);
+    --table-border: var(--input-border);
+
+    --bs-body-bg: var(--bg);
+    --bs-body-color: var(--text);
+    --bs-border-color: var(--input-border);
+    --bs-link-color: var(--link);
+    --bs-table-border-color: var(--table-border);
+    --bs-card-cap-color: var(--text);
+    --bs-card-cap-bg: var(--card-bg);
+    --table-row-alt: #141d21;
+    --placeholder: rgba(255, 255, 255, 0.35);
+}
+
+html,
+body {
+    height: 100%;
+}
+
+body {
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    background: var(--bg);
+    color: var(--text);
+}
+
+#topbar,
 .topbar {
-    background: #0b5fff;
-    color: white;
+    background: var(--topbar-bg);
+    color: var(--topbar-text);
     padding: 12px 20px;
     display: flex;
     justify-content: space-between;
     align-items: center;
+}
+
+#topbar .navbar-brand,
+#topbar .nav-link,
+.topbar h1 {
+    color: var(--topbar-text) !important;
+}
+
+#topbar .nav-link,
+#topbar .navbar-brand {
+    margin-left: 12px;
+    text-decoration: none;
+}
+
+#topbar .nav-link:hover {
+    color: color-mix(in srgb, var(--topbar-text) 85%, transparent) !important;
 }
 
 .topbar h1 {
@@ -19,25 +103,19 @@ body {
     font-size: 16px;
 }
 
-.topbar nav a {
-    color: white;
-    margin-left: 12px;
-    text-decoration: none;
-}
-
-.container {
-    max-width: 900px;
-    margin: 20px auto;
-    padding: 0 16px;
-}
-
 .card {
-    background: white;
+    background: var(--card-bg);
     padding: 16px;
     border-radius: 6px;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+    box-shadow: var(--card-shadow);
     margin-bottom: 16px;
     box-sizing: border-box;
+    color: var(--text);
+}
+
+.card-body {
+    background: transparent;
+    color: inherit;
 }
 
 .form-row {
@@ -48,18 +126,24 @@ label {
     display: block;
     font-weight: 600;
     margin-bottom: 6px;
+    color: var(--text);
 }
 
 input[type=text],
 input[type=password],
 input[type=number],
-select {
+select,
+.form-control,
+.form-select {
     width: 100%;
     padding: 8px;
-    border: 1px solid #d0d7df;
+    border: 1px solid var(--input-border);
     border-radius: 4px;
     box-sizing: border-box;
+    background: var(--card-bg);
+    color: var(--text);
 }
+
 
 .login-card {
     max-width: 420px;
@@ -69,16 +153,24 @@ select {
 }
 
 button {
-    background: #0b5fff;
-    color: white;
+    background: var(--btn-bg);
+    color: var(--btn-color);
     padding: 8px 12px;
     border: none;
     border-radius: 4px;
     cursor: pointer;
 }
 
+.btn-outline-secondary {
+    color: var(--text);
+    border-color: var(--text);
+    background: transparent;
+}
+
+
 .btn-danger {
-    background: #c03a2b;
+    background: var(--danger);
+    color: var(--btn-color);
 }
 
 .messages {
@@ -91,21 +183,104 @@ button {
     padding: 8px;
     border-radius: 4px;
     margin-bottom: 6px;
+    background: transparent;
+    color: var(--text);
 }
 
 .msg.error {
-    background: #ffecec;
-    color: #9b2a2a;
+    background: var(--danger-bg);
+    color: var(--danger);
 }
 
 .msg.success {
-    background: #e9ffef;
-    color: #1c7a25;
+    background: var(--success-bg);
+    color: var(--success);
 }
 
 .footer {
     text-align: center;
     padding: 12px;
-    color: #666;
+    color: var(--muted);
     font-size: 13px;
+}
+
+.text-muted {
+    color: var(--muted) !important;
+}
+
+a {
+    color: var(--link);
+}
+
+a:hover {
+    color: color-mix(in srgb, var(--link) 80%, transparent);
+    text-decoration: underline;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    color: var(--text);
+}
+
+table,
+.table {
+    color: var(--text);
+    background: transparent;
+    border-color: var(--table-border);
+}
+
+.table th,
+.table td {
+    color: var(--text);
+    background-color: transparent;
+}
+
+.table thead th {
+    color: var(--text);
+    background-color: transparent;
+}
+
+.table-striped tbody tr:nth-of-type(odd) {
+    background-color: var(--table-row-alt);
+}
+
+.table-striped tbody tr:nth-of-type(odd) td,
+.table-striped tbody tr:nth-of-type(odd) th {
+    background-color: var(--table-row-alt) !important;
+}
+
+.table-bordered {
+    border-color: var(--table-border);
+}
+
+
+.badge {
+    color: var(--btn-color);
+    background-color: var(--btn-bg);
+}
+
+.card {
+    --bs-card-cap-bg: var(--bs-card-cap-bg);
+}
+
+:root {
+    --bs-body-bg: var(--bg);
+    --bs-body-color: var(--text);
+    --bs-border-color: var(--input-border);
+    --bs-link-color: var(--link);
+    --bs-table-border-color: var(--table-border);
+}
+
+input::placeholder,
+textarea::placeholder {
+    color: var(--placeholder);
+}
+
+
+#themeToggle {
+    border-color: var(--btn-color);
 }
