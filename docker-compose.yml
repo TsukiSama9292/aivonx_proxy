@@ -4,7 +4,6 @@ x-default-opts: &default-opts
   stdin_open: true
   privileged: false
   ipc: private
-  network_mode: host
 
 services:
   # django:
@@ -21,8 +20,8 @@ services:
   redis:
     <<: *default-opts
     container_name: redis
-    # ports:
-    #   - "6379:6379"
+    ports:
+      - "6379:6379"
     image: redis:8.4-alpine3.22
   postgres:
     <<: *default-opts
@@ -32,16 +31,16 @@ services:
       POSTGRES_USER: "${POSTGRES_USER:-user}"
       POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-password}"
       POSTGRES_DB: "${POSTGRES_DB:-app_db}"
-    # ports:
-    #   - "5432:5432"
+    ports:
+      - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
   ollama:
     <<: *default-opts
     container_name: ollama
     image: ollama/ollama:latest
-    # ports:
-    #   - "11434:11434"
+    ports:
+      - "11434:11434"
     volumes:
       - ollama_data:/data
 
