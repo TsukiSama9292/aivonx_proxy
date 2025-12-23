@@ -8,4 +8,4 @@ from django.views.decorators.csrf import csrf_protect
 def logs_page(request):
     """Render a single read-only logs page.
     """
-    return render(request, 'logviewer/logviewer.html', {})
+    return render(request, 'logviewer.html', {})

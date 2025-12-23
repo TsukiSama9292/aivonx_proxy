@@ -5,8 +5,9 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <title>Proxy UI - {% block title %}{% endblock %}</title>
-    <link rel="icon" href="{% static 'proxy/favicon.ico' %}">
-    <link rel="stylesheet" href="{% static 'proxy/style.css' %}">
+    <link rel="icon" href="{% static 'img/favicon.ico' %}">
+    <link rel="stylesheet" href="{% static 'css/global.css' %}">
+    {% block extra_head %}{% endblock %}
   </head>
   <body>
     <header class="topbar">
@@ -31,5 +32,6 @@
       {% endif %}
       {% block content %}{% endblock %}
     </main>
+    {% block extra_body %}{% endblock %}
   </body>
 </html>

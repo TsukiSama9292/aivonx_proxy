@@ -84,7 +84,7 @@ ROOT_URLCONF = 'aivonx.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'ui' / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -150,6 +150,7 @@ STATIC_URL = '/static/'
 # Directory where `collectstatic` will gather files for production
 # Required when using the staticfiles app and running `collectstatic`.
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_DIRS = [BASE_DIR / 'ui' / 'static']
 
 # Path to JSON log file used by the logviewer API
 LOG_JSON_PATH = str(BASE_DIR / 'logs' / 'django.json')
