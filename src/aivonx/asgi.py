@@ -196,7 +196,7 @@ async def application(scope, receive, send):
 						
 						if got_lock:
 							try:
-								mgr.start_scheduler(interval_minutes=10)
+								mgr.start_scheduler(interval_seconds=10)
 								logger.info("ASGI startup: ✅ acquired leader lock and started scheduler in this worker (PID %d)", os.getpid())
 							except Exception as e:
 								logger.exception("ASGI startup: scheduler start failed: %s", e)

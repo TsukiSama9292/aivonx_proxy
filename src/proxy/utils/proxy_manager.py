@@ -558,7 +558,7 @@ class HAProxyManager:
         if self._can_write_cache():
             cache.set(key, cnt)
 
-    def start_scheduler(self, interval_minutes: int = 2) -> None:
+    def start_scheduler(self, interval_seconds: int = 10) -> None:
         if self._scheduler is not None:
             return
 
@@ -572,8 +572,9 @@ class HAProxyManager:
                 logger.debug("scheduler job error: %s", e)
 
         sched = BackgroundScheduler()
-        # Run health check immediately on startup, then every interval_minutes
-        sched.add_job(_sync_job, "interval", minutes=interval_minutes, next_run_time=None)
+        # Run health check immediately on startup, then every interval_seconds
+        import datetime
+        sched.add_job(_sync_job, "interval", seconds=interval_seconds, next_run_time=datetime.datetime.now())
         # schedule model refresh every 1 minute
         def _sync_models_job():
             try:
@@ -621,7 +622,7 @@ class HAProxyManager:
         sched.add_job(_sync_refresh_on_request, 'interval', seconds=5)
         sched.start()
         self._scheduler = sched
-        logger.info("HAProxyManager scheduler started (%d min)", interval_minutes)
+        logger.info("HAProxyManager scheduler started (health check every %d sec)", interval_seconds)
 
     async def close(self) -> None:
         await self._client.aclose()
