@@ -6,17 +6,18 @@ x-default-opts: &default-opts
   ipc: private
 
 services:
-  # django:
-  #   <<: *default-opts
-  #   container_name: app
-  #   build:
-  #     context: .
-  #     dockerfile: Dockerfile
-  #   ports:
-  #     - "${APP_PORT:-8000}:8000"
-  #   volumes:
-  #     - ./:/app
-  #   command: ["uv", "run", "main.py", "--workers", "2"]
+  django:
+    <<: *default-opts
+    container_name: app
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "${APP_PORT:-8000}:8000"
+    volumes:
+      - ./:/app
+    entrypoint:
+      bash -c "uv run src/manage.py migrate && uv run main.py --workers 4"
   redis:
     <<: *default-opts
     container_name: redis

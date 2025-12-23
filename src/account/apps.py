@@ -60,31 +60,34 @@ class AccountConfig(AppConfig):
                 # DB not ready or introspection failed
                 return False
 
-        try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError:
-            # No running loop -> safe to call synchronously, but only if auth_user table exists
-            try:
-                if _db_has_table('auth_user'):
-                    create_root_user(None)
-                else:
-                    logger.debug("create_root_user: auth_user table missing on startup, will rely on post_migrate")
-            except OperationalError:
-                logger.debug("create_root_user: DB not ready on startup, will rely on post_migrate")
-            except Exception as e:
-                logger.exception("create_root_user: unexpected error on startup attempt: %s", e)
-        else:
-            # We're in an async loop; schedule a safe wrapper to run in a thread
-            async def _safe_create_wrapper():
-                try:
-                    if _db_has_table('auth_user'):
-                        await sync_to_async(create_root_user)(None)
-                    else:
-                        logger.debug("create_root_user: auth_user table missing (async), will rely on post_migrate")
-                except Exception:
-                    logger.exception("create_root_user: async startup attempt failed")
+        # Avoid querying the DB directly during AppConfig.ready (suppresses
+        # runtime warnings). Use the `post_migrate` signal for creation and
+        # start a background thread that polls for DB readiness and creates the
+        # root user once the `auth_user` table exists.
+        import threading
+        import time
 
+        def _background_create_root():
+            timeout = int(os.getenv("ROOT_CREATE_TIMEOUT", "30"))
+            interval = 1
+            elapsed = 0
             try:
-                loop.create_task(_safe_create_wrapper())
-            except Exception as e:
-                logger.exception("create_root_user: failed to schedule async startup attempt: %s", e)
+                while elapsed < timeout:
+                    try:
+                        if _db_has_table('auth_user'):
+                            create_root_user(None)
+                            return
+                    except Exception:
+                        # DB not ready yet; keep waiting
+                        pass
+                    time.sleep(interval)
+                    elapsed += interval
+                logger.debug("create_root_user: timeout waiting for auth_user table, will rely on post_migrate")
+            except Exception:
+                logger.exception("create_root_user: background creation failed")
+
+        try:
+            t = threading.Thread(target=_background_create_root, name="create_root_bg", daemon=True)
+            t.start()
+        except Exception:
+            logger.exception("create_root_user: failed to start background thread")

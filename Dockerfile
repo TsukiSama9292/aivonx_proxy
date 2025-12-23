@@ -15,3 +15,4 @@ WORKDIR /app
 RUN uv sync
 ENV PORT=8000
 RUN uv run src/manage.py collectstatic --noinput
+RUN uv run src/manage.py makemigrations

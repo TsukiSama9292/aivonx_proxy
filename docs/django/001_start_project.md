@@ -61,7 +61,7 @@ cd src
 ## 4. 建立資料庫遷移檔案
 
 ```bash
-uv run manage.py makemigrations
+uv run src/manage.py makemigrations
 ```
 
 ## 5. 執行資料庫遷移檔案
