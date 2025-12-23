@@ -4,7 +4,8 @@ from rest_framework.permissions import AllowAny
 from django.apps import apps
 import logging
 logger = logging.getLogger('proxy')
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import extend_schema, OpenApiParameter
+from drf_spectacular.types import OpenApiTypes
 from rest_framework.response import Response
 from rest_framework import status
 from .serializers import ProxyConfigSerializer
@@ -178,13 +179,13 @@ def proxy_config(request):
 		503: {'type': 'object', 'properties': {'error': {'type': 'string'}}}
 	},
 	parameters=[
-		{
-			'name': 'node_id',
-			'in': 'query',
-			'description': 'Filter by specific node ID (optional)',
-			'required': False,
-			'schema': {'type': 'integer'}
-		}
+		OpenApiParameter(
+			name='node_id',
+			location=OpenApiParameter.QUERY,
+			description='Filter by specific node ID (optional)',
+			required=False,
+			type=OpenApiTypes.INT,
+		),
 	],
 	description='Get active request counts for all nodes or a specific node. Returns detailed information about each node including active requests, status, latency, and available models.'
 )

@@ -89,7 +89,7 @@ TEMPLATES = [
             BASE_DIR / 'proxy' / 'templates',
             BASE_DIR / 'logviewer' / 'templates',
         ],
-        'APP_DIRS': False,
+        'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
                 'django.template.context_processors.request',
@@ -116,7 +116,7 @@ DATABASES = {
         'NAME': os.getenv("POSTGRES_DB", "app_db"),
         'USER': os.getenv("POSTGRES_USER", "user"),
         'PASSWORD': os.getenv("POSTGRES_PASSWORD", "password"),
-        'HOST': os.getenv("POSTGRES_HOST", "postgres"),
+        'HOST': os.getenv("POSTGRES_HOST", "localhost"),
         'PORT': os.getenv("POSTGRES_PORT", "5432"),
     }
 }
@@ -204,7 +204,7 @@ SPECTACULAR_SETTINGS = {
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": os.getenv("REDIS_URL", "redis://redis:6379/1"),
+        "LOCATION": os.getenv("REDIS_URL", "redis://localhost:6379/1"),
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         }

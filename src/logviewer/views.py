@@ -5,7 +5,8 @@ from typing import Optional
 from django.conf import settings
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status
+from rest_framework import status, serializers
+from drf_spectacular.utils import extend_schema
 
 
 def _parse_time(value: str) -> Optional[datetime]:
@@ -133,3 +134,26 @@ class LogsAPIView(APIView):
             'limit': limit,
             'results': results,
         })
+
+
+class LogEntrySerializer(serializers.Serializer):
+    timestamp = serializers.CharField(allow_null=True)
+    level = serializers.CharField(allow_null=True)
+    logger = serializers.CharField(allow_null=True)
+    module = serializers.CharField(allow_null=True)
+    process = serializers.CharField(allow_null=True)
+    thread = serializers.CharField(allow_null=True)
+    message = serializers.CharField(allow_null=True)
+    raw = serializers.DictField()
+
+
+class LogListSerializer(serializers.Serializer):
+    count = serializers.IntegerField()
+    offset = serializers.IntegerField()
+    limit = serializers.IntegerField()
+    results = LogEntrySerializer(many=True)
+
+
+# Help drf-spectacular infer the response schema
+LogsAPIView.serializer_class = LogListSerializer
+LogsAPIView.get = extend_schema(responses=LogListSerializer)(LogsAPIView.get)
