@@ -51,10 +51,14 @@ class HAProxyManager:
         - verify Redis `ha_manager_leader` owner matches this process' owner id
         - fallback to truthiness of `cache.get('ha_manager_leader')` (best-effort)
         """
+        # Only the process that explicitly holds the leader flag or whose
+        # owner id matches the raw Redis owner may write cache. Avoid
+        # fallbacks that rely on cache.get truthiness (LocMem or intermittent
+        # connection issues can give false-positives).
         try:
             if getattr(self, "_is_leader", False):
                 return True
-            # try to confirm owner via raw redis value
+            owner = getattr(self, '_leader_owner', None)
             try:
                 from django_redis import get_redis_connection
                 conn = get_redis_connection('default')
@@ -63,17 +67,12 @@ class HAProxyManager:
                     return False
                 if isinstance(val, (bytes, bytearray)):
                     val = val.decode()
-                owner = getattr(self, '_leader_owner', None)
                 if owner:
                     return val == owner
-                # if we don't have an owner, do not assume write privileges
                 return False
             except Exception:
-                # fallback to django cache truthiness
-                try:
-                    return bool(cache.get('ha_manager_leader'))
-                except Exception:
-                    return False
+                # If we can't reach Redis, conservatively deny write privileges.
+                return False
         except Exception:
             return False
 
@@ -86,7 +85,13 @@ class HAProxyManager:
                 pass
 
     async def ping_node(self, addr: str) -> tuple[bool, float]:
-        url = addr.rstrip("/") + self.health_path
+        # Ollama exposes a base-url health response (e.g. GET http://host:port
+        # -> "ollama is running"). If `health_path` is empty or '/', call the
+        # node root; otherwise append the configured path.
+        if not self.health_path or self.health_path == "/":
+            url = addr.rstrip("/")
+        else:
+            url = addr.rstrip("/") + (self.health_path if self.health_path.startswith("/") else "/" + self.health_path)
         t0 = time.perf_counter()
         try:
             import httpx
@@ -186,6 +191,12 @@ class HAProxyManager:
         standby = cache.get(self.STANDBY_POOL_KEY, [])
         all_nodes = list({*active, *standby, *self.nodes})
 
+        # import model here so we can persist active state changes
+        try:
+            from proxy.models import node as NodeModel
+        except Exception:
+            NodeModel = None
+
         tasks = {addr: asyncio.create_task(self.ping_node(addr)) for addr in all_nodes}
         for addr, task in tasks.items():
             ok, latency = await task
@@ -202,12 +213,54 @@ class HAProxyManager:
                             cache.set(self.ACTIVE_POOL_KEY, active)
                             cache.set(self.STANDBY_POOL_KEY, standby)
                         logger.info("Node restored -> active: %s", addr)
+                        # persist to DB: mark node active
+                        if NodeModel is not None and self._can_write_cache():
+                            try:
+                                @sync_to_async
+                                def _mark_active():
+                                    qs = NodeModel.objects.all()
+                                    for n in qs:
+                                        a = (n.address or "").strip()
+                                        if n.port and ":" not in a.split("/")[-1]:
+                                            a = f"{a}:{n.port}"
+                                        if a and not a.startswith("http"):
+                                            a = "http://" + a
+                                        if a == addr:
+                                            NodeModel.objects.filter(pk=n.pk).update(active=True)
+                                            break
+                                try:
+                                    await _mark_active()
+                                except Exception:
+                                    logger.debug("failed to mark node active in DB for %s", addr)
+                            except Exception:
+                                logger.debug("failed scheduling db mark active for %s", addr)
                 else:
                     # ensure it's in active
                     if addr not in active:
                         active.append(addr)
                         if self._can_write_cache():
                             cache.set(self.ACTIVE_POOL_KEY, active)
+                        # persist to DB: mark node active
+                        if NodeModel is not None and self._can_write_cache():
+                            try:
+                                @sync_to_async
+                                def _mark_active2():
+                                    qs = NodeModel.objects.all()
+                                    for n in qs:
+                                        a = (n.address or "").strip()
+                                        if n.port and ":" not in a.split("/")[-1]:
+                                            a = f"{a}:{n.port}"
+                                        if a and not a.startswith("http"):
+                                            a = "http://" + a
+                                        if a == addr:
+                                            NodeModel.objects.filter(pk=n.pk).update(active=True)
+                                            break
+                                try:
+                                    await _mark_active2()
+                                except Exception:
+                                    logger.debug("failed to mark node active in DB for %s", addr)
+                            except Exception:
+                                logger.debug("failed scheduling db mark active for %s", addr)
             else:
                 # move to standby
                 if addr in active:
@@ -218,6 +271,27 @@ class HAProxyManager:
                         cache.set(self.ACTIVE_POOL_KEY, active)
                         cache.set(self.STANDBY_POOL_KEY, standby)
                     logger.warning("Node moved to standby: %s", addr)
+                    # persist to DB: mark node inactive
+                    if NodeModel is not None and self._can_write_cache():
+                        try:
+                            @sync_to_async
+                            def _mark_inactive():
+                                qs = NodeModel.objects.all()
+                                for n in qs:
+                                    a = (n.address or "").strip()
+                                    if n.port and ":" not in a.split("/")[-1]:
+                                        a = f"{a}:{n.port}"
+                                    if a and not a.startswith("http"):
+                                        a = "http://" + a
+                                    if a == addr:
+                                        NodeModel.objects.filter(pk=n.pk).update(active=False)
+                                        break
+                            try:
+                                await _mark_inactive()
+                            except Exception:
+                                logger.debug("failed to mark node inactive in DB for %s", addr)
+                        except Exception:
+                            logger.debug("failed scheduling db mark inactive for %s", addr)
 
     async def refresh_models_all(self) -> None:
         """Query each known node's `/api/tags` and store available model names.
@@ -457,6 +531,41 @@ class HAProxyManager:
                 logger.debug("models refresh job error: %s", e)
 
         sched.add_job(_sync_models_job, "interval", minutes=1)
+        # schedule a short-poll job to listen for external refresh requests (set by signals)
+        def _sync_refresh_on_request():
+            try:
+                from django_redis import get_redis_connection
+                conn = get_redis_connection('default')
+                val = conn.get('ha_refresh_request')
+                if val is None:
+                    return
+                # consume the request and run refreshes
+                try:
+                    # synchronous DB refresh
+                    self.refresh_from_db()
+                except Exception:
+                    logger.debug("poll-refresh: refresh_from_db failed")
+                try:
+                    import asyncio
+
+                    asyncio.run(self.refresh_models_all())
+                except Exception:
+                    logger.debug("poll-refresh: refresh_models_all failed")
+                try:
+                    import asyncio
+
+                    asyncio.run(self.health_check_all())
+                except Exception:
+                    logger.debug("poll-refresh: health_check_all failed")
+                try:
+                    conn.delete('ha_refresh_request')
+                except Exception:
+                    pass
+            except Exception:
+                # best-effort, ignore polling errors
+                return
+
+        sched.add_job(_sync_refresh_on_request, 'interval', seconds=5)
         sched.start()
         self._scheduler = sched
         logger.info("HAProxyManager scheduler started (%d min)", interval_minutes)
@@ -535,29 +644,48 @@ def init_global_manager_from_db(health_path: str = "/api/health") -> HAProxyMana
             leader_key = "ha_manager_leader"
             # lock timeout in seconds (if process dies, lock expires and another worker can take over)
             leader_lock_timeout = 60 * 30
+            # Prefer a raw Redis SET NX to acquire a single-process leader lock.
+            # This avoids relying on the Django cache backend semantics (which may
+            # be process-local in some environments) and gives us an owner id
+            # we can verify across processes.
+            got_lock = False
             try:
-                got_lock = cache.add(leader_key, True, leader_lock_timeout)
-            except Exception:
-                got_lock = False
-
-            if got_lock:
+                from django_redis import get_redis_connection
+                import socket, os
+                conn = get_redis_connection('default')
+                owner = f"{socket.gethostname()}:{os.getpid()}"
+                # SET key value NX EX ttl -> atomic acquire
+                # redis-py returns True if the key was set
                 try:
-                    # mark this mgr as leader-writer and attempt to store an owner id in Redis
+                    set_ok = conn.set(leader_key, owner, nx=True, ex=leader_lock_timeout)
+                except TypeError:
+                    # older redis client may not accept nx/ex kwargs on set; fallback
                     try:
-                        import socket, os
-                        owner = f"{socket.gethostname()}:{os.getpid()}"
-                        mgr._leader_owner = owner
+                        set_ok = conn.setnx(leader_key, owner)
+                        if set_ok:
+                            conn.expire(leader_key, leader_lock_timeout)
+                    except Exception:
+                        set_ok = False
+                if set_ok:
+                    got_lock = True
+                    mgr._leader_owner = owner
+                    mgr._is_leader = True
+                else:
+                    # if not set, someone else holds it; don't assume leadership
+                    got_lock = False
+            except Exception:
+                # If Redis isn't reachable, fall back to Django cache.add as a best-effort
+                try:
+                    got_lock = cache.add(leader_key, True, leader_lock_timeout)
+                    if got_lock:
                         mgr._is_leader = True
                         try:
-                            from django_redis import get_redis_connection
-                            conn = get_redis_connection('default')
-                            # write owner id with TTL so other workers can observe ownership
-                            conn.set(leader_key, owner, ex=leader_lock_timeout)
+                            import socket, os
+                            mgr._leader_owner = f"{socket.gethostname()}:{os.getpid()}"
                         except Exception:
-                            # best-effort; continue even if we can't write owner into raw redis
-                            pass
-                    except Exception:
-                        pass
+                            mgr._leader_owner = None
+                except Exception:
+                    got_lock = False
                     # ensure leader populates caches now that it owns the lock
                     try:
                         # perform a sync DB refresh so ACTIVE_POOL_KEY/NODE_ID_MAP_KEY are set

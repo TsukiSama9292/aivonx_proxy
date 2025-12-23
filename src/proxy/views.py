@@ -11,6 +11,7 @@ from rest_framework import status
 from .serializers import ProxyConfigSerializer
 from .models import ProxyConfig
 from rest_framework.permissions import IsAuthenticated
+import httpx
 
 def _get_manager():
     app_config = apps.get_app_config("proxy")
@@ -79,13 +80,13 @@ def state(request):
             except Exception:
                 logger.debug("refresh_from_db failed in state handler")
         return JsonResponse({
-            "active": active,
-            "standby": standby,
-            "node_id_map": node_map,
-            "latencies": latencies,
-            "active_counts": active_counts,
-            "models": models,
-        })
+			"active": active,
+			"standby": standby,
+			"node_id_map": node_map,
+			"latencies": latencies,
+			"active_counts": active_counts,
+			"models": models,
+		})
     except Exception as e:
         logger.exception("failed to read state")
         return JsonResponse({"error": "failed to read state", "details": str(e)}, status=500)

@@ -22,7 +22,9 @@ async def application(scope, receive, send):
 
 					logger.info("ASGI startup: initializing proxy manager...")
 					# Create manager and explicitly load nodes from DB in async context
-					mgr = HAProxyManager(nodes=None, health_path="/api/health")
+					# Ollama exposes a base-url health response (e.g. GET http://host:port -> "ollama is running");
+					# use empty health_path so manager will probe the node root.
+					mgr = HAProxyManager(nodes=None, health_path="")
 					
 					# Load nodes from DB using async version to avoid blocking
 					try:

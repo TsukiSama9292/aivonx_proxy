@@ -5,6 +5,8 @@ import logging
 logger = logging.getLogger('proxy')
 
 from .utils.proxy_manager import get_global_manager
+from django_redis import get_redis_connection
+import time
 
 
 @receiver(post_save, sender=NodeModel)
@@ -18,6 +20,12 @@ def node_saved(sender, instance, **kwargs):
         try:
             mgr.refresh_from_db()
             logger.info("signals: refreshed HA manager from DB after node save (id=%s)", getattr(instance, 'id', None))
+            # Notify leader to immediately perform health/models refresh.
+            try:
+                conn = get_redis_connection('default')
+                conn.set('ha_refresh_request', str(time.time()), ex=30)
+            except Exception:
+                logger.debug("signals: failed to write ha_refresh_request to redis")
         except Exception as e:
             logger.exception("signals: failed to refresh HA manager after node save: %s", e)
     except Exception:
@@ -35,6 +43,12 @@ def node_deleted(sender, instance, **kwargs):
         try:
             mgr.refresh_from_db()
             logger.info("signals: refreshed HA manager from DB after node delete (id=%s)", getattr(instance, 'id', None))
+            # Notify leader to immediately perform health/models refresh.
+            try:
+                conn = get_redis_connection('default')
+                conn.set('ha_refresh_request', str(time.time()), ex=30)
+            except Exception:
+                logger.debug("signals: failed to write ha_refresh_request to redis")
         except Exception as e:
             logger.exception("signals: failed to refresh HA manager after node delete: %s", e)
     except Exception:

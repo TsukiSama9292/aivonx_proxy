@@ -5,12 +5,9 @@ class node(models.Model):
     name = models.CharField(max_length=100)
     address = models.CharField(max_length=200)
     port = models.IntegerField()
-    active = models.BooleanField(default=True)
-    # list of model names available on this node (updated periodically)
+    active = models.BooleanField(default=False)
     available_models = models.JSONField(blank=True, default=list)
     created_at = models.DateTimeField(auto_now_add=True)
-
-
 
 class ProxyConfig(models.Model):
     """Global config for proxy selection strategy.
