@@ -236,7 +236,7 @@ pullModelInput.addEventListener('keypress', (e) => {
 
 async function fetchModels() {
   try {
-    const res = await fetch('/api/proxy/tags', { credentials: 'same-origin' });
+    const res = await fetch('/api/tags', { credentials: 'same-origin' });
     if (!res.ok) { throw new Error('status ' + res.status); }
     const data = await res.json();
     return data.models || [];
