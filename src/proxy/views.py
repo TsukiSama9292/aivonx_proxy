@@ -12,6 +12,7 @@ from .serializers import ProxyConfigSerializer
 from .models import ProxyConfig
 from rest_framework.permissions import IsAuthenticated
 import httpx
+from django.core.cache import cache
 
 def _get_manager():
     app_config = apps.get_app_config("proxy")
@@ -31,6 +32,35 @@ def _get_manager():
             logger.debug("_get_manager: init_global_manager_from_db failed, falling back to get_global_manager()")
             mgr = get_global_manager()
     return mgr
+
+def _get_active_count(mgr, addr: str) -> int:
+    """Helper to get active request count, handling bytes from Redis."""
+    key = mgr._active_count_key(addr)
+    # Try to read directly from Redis first for most up-to-date value
+    try:
+        from django_redis import get_redis_connection
+        conn = get_redis_connection('default')
+        val = conn.get(key)
+        if val is not None:
+            if isinstance(val, bytes):
+                return int(val.decode())
+            return int(val)
+        return 0
+    except Exception:
+        # Fallback to cache
+        val = cache.get(key, 0)
+        if isinstance(val, bytes):
+            try:
+                return int(val.decode())
+            except Exception:
+                return 0
+        elif isinstance(val, int):
+            return val
+        else:
+            try:
+                return int(val)
+            except Exception:
+                return 0
 
 @extend_schema(
     tags=['Proxy'],
@@ -65,7 +95,7 @@ def state(request):
         standby = cache.get(mgr.STANDBY_POOL_KEY, [])
         node_map = cache.get(mgr.NODE_ID_MAP_KEY, {})
         latencies = {a: cache.get(mgr.LATENCY_KEY_PREFIX + a) for a in list({*active, *standby})}
-        active_counts = {a: cache.get(mgr._active_count_key(a), 0) for a in list({*active, *standby})}
+        active_counts = {a: _get_active_count(mgr, a) for a in list({*active, *standby})}
         models = {a: cache.get(mgr.MODELS_KEY_PREFIX + a, []) for a in list({*active, *standby})}
         # If cache is empty in this process (LocMemCache is process-local), refresh from DB
         if not active and getattr(mgr, 'nodes', None):
@@ -75,7 +105,7 @@ def state(request):
                 standby = cache.get(mgr.STANDBY_POOL_KEY, [])
                 node_map = cache.get(mgr.NODE_ID_MAP_KEY, {})
                 latencies = {a: cache.get(mgr.LATENCY_KEY_PREFIX + a) for a in list({*active, *standby})}
-                active_counts = {a: cache.get(mgr._active_count_key(a), 0) for a in list({*active, *standby})}
+                active_counts = {a: _get_active_count(mgr, a) for a in list({*active, *standby})}
                 models = {a: cache.get(mgr.MODELS_KEY_PREFIX + a, []) for a in list({*active, *standby})}
             except Exception:
                 logger.debug("refresh_from_db failed in state handler")
@@ -229,19 +259,10 @@ def active_requests(request):
 		# Get node details from database
 		if filter_node_id:
 			# Prefer looking up the node by PK even if the `active` flag in DB
-			# might be stale; then ensure the node is managed by this proxy
+			# might be stale; allow querying any node that exists
 			node_obj = NodeModel.objects.filter(pk=filter_node_id).first()
 			if not node_obj:
 				return JsonResponse({"error": f"node not found: {filter_node_id}"}, status=404)
-			# build canonical address for this node
-			addr = (node_obj.address or "").strip()
-			if node_obj.port and ":" not in addr.split("/")[-1]:
-				addr = f"{addr}:{node_obj.port}"
-			if addr and not addr.startswith("http"):
-				addr = "http://" + addr
-			# if this node is not in active or standby pools, treat as not managed/available
-			if addr not in active_pool and addr not in standby_pool:
-				return JsonResponse({"error": f"node not active or not managed: {filter_node_id}"}, status=404)
 			# restrict queryset to the single node we found
 			nodes_qs = NodeModel.objects.filter(pk=filter_node_id)
 		else:
@@ -259,11 +280,16 @@ def active_requests(request):
 			if addr and not addr.startswith("http"):
 				addr = "http://" + addr
 			
-			# Skip if node address not in pools (not managed)
-			if addr not in active_pool and addr not in standby_pool:
-				continue
+			# Determine status even if not in pools (might be inactive)
+			if addr in active_pool:
+				status_str = 'active'
+			elif addr in standby_pool:
+				status_str = 'standby'
+			else:
+				status_str = 'inactive'
 			
-			active_count = cache.get(mgr._active_count_key(addr), 0)
+			# Get active count using helper function
+			active_count = _get_active_count(mgr, addr)
 			latency = cache.get(mgr.LATENCY_KEY_PREFIX + addr)
 			models = cache.get(mgr.MODELS_KEY_PREFIX + addr, [])
 			# fallback to DB-stored available_models when cache is empty
@@ -273,7 +299,6 @@ def active_requests(request):
 						models = node.available_models
 				except Exception:
 					models = []
-			status_str = 'active' if addr in active_pool else 'standby'
 			
 			nodes_data.append({
 				'id': node.id,

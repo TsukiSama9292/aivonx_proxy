@@ -17,7 +17,7 @@ services:
     volumes:
       - ./:/app
     entrypoint:
-      bash -c "uv run src/manage.py migrate && uv run main.py --workers 4"
+      bash -c "uv run src/manage.py migrate && uv run main.py --workers 2"
   redis:
     <<: *default-opts
     container_name: redis

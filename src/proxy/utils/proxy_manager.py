@@ -440,15 +440,27 @@ class HAProxyManager:
 
         active = cache.get(self.ACTIVE_POOL_KEY, [])
         if not active:
+            logger.warning("choose_node: no active nodes available")
             return None
+
+        logger.debug("choose_node: active pool has %d nodes: %s", len(active), active)
 
         # filter candidates by model availability
         if model_name:
-            candidates = [a for a in active if model_name in cache.get(self.MODELS_KEY_PREFIX + a, [])]
+            candidates = []
+            for a in active:
+                models = cache.get(self.MODELS_KEY_PREFIX + a, [])
+                logger.debug("choose_node: node %s has models: %s", a, models)
+                if model_name in models:
+                    candidates.append(a)
+            logger.info("choose_node: filtered to %d candidates with model '%s' from %d active nodes", 
+                       len(candidates), model_name, len(active))
         else:
             candidates = list(active)
+            logger.debug("choose_node: no model filter, using all %d active nodes", len(candidates))
 
         if not candidates:
+            logger.warning("choose_node: no candidates available for model '%s'", model_name)
             return None
 
         chosen = None
@@ -460,17 +472,89 @@ class HAProxyManager:
                     best_lat = lat
                     chosen = a
         else:
-            best_cnt = None
-            for a in candidates:
-                cnt = cache.get(self._active_count_key(a), 0)
-                if best_cnt is None or cnt < best_cnt:
-                    best_cnt = cnt
-                    chosen = a
-
-        if chosen:
-            key = self._active_count_key(chosen)
-            if self._can_write_cache():
-                cache.set(key, cache.get(key, 0) + 1)
+            # Use Redis Lua script for atomic "read all counts, choose min, increment"
+            # This prevents race condition where multiple requests choose the same node
+            try:
+                from django_redis import get_redis_connection
+                conn = get_redis_connection('default')
+                
+                # Build list of keys for all candidate nodes
+                keys = [self._active_count_key(a) for a in candidates]
+                
+                # Debug: log current counts before selection
+                current_counts = {}
+                for a in candidates:
+                    try:
+                        val = conn.get(self._active_count_key(a))
+                        if val is not None:
+                            current_counts[a] = int(val) if isinstance(val, (bytes, str)) else val
+                        else:
+                            current_counts[a] = 0
+                    except Exception:
+                        current_counts[a] = 0
+                logger.info("choose_node: current counts before selection: %s", current_counts)
+                
+                # Lua script: get all counts, find index of minimum, increment that key
+                # KEYS: array of count keys
+                # Returns: {chosen_index (1-based), new_count, chosen_addr}
+                lua_script = """
+                local min_count = nil
+                local min_idx = 1
+                for i, key in ipairs(KEYS) do
+                    local count = redis.call('GET', key)
+                    if count == false then
+                        count = 0
+                    else
+                        count = tonumber(count)
+                    end
+                    if min_count == nil or count < min_count then
+                        min_count = count
+                        min_idx = i
+                    end
+                end
+                local chosen_key = KEYS[min_idx]
+                local new_count = redis.call('INCR', chosen_key)
+                return {min_idx, new_count}
+                """
+                
+                result = conn.eval(lua_script, len(keys), *keys)
+                chosen_idx = int(result[0]) - 1  # Lua is 1-based, Python is 0-based
+                new_count = int(result[1])
+                chosen = candidates[chosen_idx]
+                logger.info("choose_node: atomically chose %s with new count %s (had %d candidates)", 
+                           chosen, new_count, len(candidates))
+            except Exception as e:
+                logger.warning("choose_node: Redis Lua script failed (%s), falling back to non-atomic", e)
+                # Fallback to non-atomic operation
+                best_cnt = None
+                for a in candidates:
+                    try:
+                        from django_redis import get_redis_connection
+                        conn = get_redis_connection('default')
+                        val = conn.get(self._active_count_key(a))
+                        if val is not None:
+                            cnt = int(val) if isinstance(val, (bytes, str)) else val
+                        else:
+                            cnt = 0
+                    except Exception:
+                        cnt = cache.get(self._active_count_key(a), 0)
+                    
+                    if best_cnt is None or cnt < best_cnt:
+                        best_cnt = cnt
+                        chosen = a
+                
+                # Increment after choosing (non-atomic fallback)
+                if chosen:
+                    key = self._active_count_key(chosen)
+                    try:
+                        from django_redis import get_redis_connection
+                        conn = get_redis_connection('default')
+                        new_val = conn.incr(key)
+                        logger.info("choose_node: incremented %s to %s (addr=%s) [fallback]", key, new_val, chosen)
+                    except Exception as e2:
+                        logger.warning("choose_node: Redis INCR failed (%s), falling back to cache", e2)
+                        if self._can_write_cache():
+                            cache.set(key, cache.get(key, 0) + 1)
         return chosen
 
     def _active_count_key(self, addr: str) -> str:
@@ -491,19 +575,71 @@ class HAProxyManager:
                     best_lat = lat
             chosen = best
         else:  # least_active
-            chosen = None
-            best_cnt = None
-            for a in active:
-                cnt = cache.get(self._active_count_key(a), 0)
-                if best_cnt is None or cnt < best_cnt:
-                    best_cnt = cnt
-                    chosen = a
-
-        if chosen:
-            # increment active count
-            key = self._active_count_key(chosen)
-            if self._can_write_cache():
-                cache.set(key, cache.get(key, 0) + 1)
+            # Use Redis Lua script for atomic "read all counts, choose min, increment"
+            try:
+                from django_redis import get_redis_connection
+                conn = get_redis_connection('default')
+                
+                keys = [self._active_count_key(a) for a in active]
+                
+                lua_script = """
+                local min_count = nil
+                local min_idx = 1
+                for i, key in ipairs(KEYS) do
+                    local count = redis.call('GET', key)
+                    if count == false then
+                        count = 0
+                    else
+                        count = tonumber(count)
+                    end
+                    if min_count == nil or count < min_count then
+                        min_count = count
+                        min_idx = i
+                    end
+                end
+                local chosen_key = KEYS[min_idx]
+                local new_count = redis.call('INCR', chosen_key)
+                return {min_idx, new_count}
+                """
+                
+                result = conn.eval(lua_script, len(keys), *keys)
+                chosen_idx = int(result[0]) - 1
+                new_count = int(result[1])
+                chosen = active[chosen_idx]
+                logger.info("acquire_node: atomically chose %s with new count %s (had %d nodes)", 
+                           chosen, new_count, len(active))
+            except Exception as e:
+                logger.warning("acquire_node: Redis Lua script failed (%s), falling back", e)
+                # Fallback to non-atomic
+                chosen = None
+                best_cnt = None
+                for a in active:
+                    try:
+                        from django_redis import get_redis_connection
+                        conn = get_redis_connection('default')
+                        val = conn.get(self._active_count_key(a))
+                        if val is not None:
+                            cnt = int(val) if isinstance(val, (bytes, str)) else val
+                        else:
+                            cnt = 0
+                    except Exception:
+                        cnt = cache.get(self._active_count_key(a), 0)
+                    
+                    if best_cnt is None or cnt < best_cnt:
+                        best_cnt = cnt
+                        chosen = a
+                
+                if chosen:
+                    key = self._active_count_key(chosen)
+                    try:
+                        from django_redis import get_redis_connection
+                        conn = get_redis_connection('default')
+                        new_val = conn.incr(key)
+                        logger.info("acquire_node: incremented %s to %s (addr=%s) [fallback]", key, new_val, chosen)
+                    except Exception as e2:
+                        logger.warning("acquire_node: Redis INCR failed (%s), falling back to cache", e2)
+                        if self._can_write_cache():
+                            cache.set(key, cache.get(key, 0) + 1)
         return chosen
 
     def get_address_for_node_id(self, node_id: int) -> Optional[str]:
@@ -547,16 +683,45 @@ class HAProxyManager:
         if addr not in active:
             return None
         key = self._active_count_key(addr)
-        if self._can_write_cache():
-            cache.set(key, cache.get(key, 0) + 1)
+        # Use Redis INCR for atomic increment (works from any worker)
+        try:
+            from django_redis import get_redis_connection
+            conn = get_redis_connection('default')
+            new_val = conn.incr(key)
+            logger.info("acquire_node_by_id: incremented %s to %s (addr=%s)", key, new_val, addr)
+        except Exception as e:
+            logger.warning("acquire_node_by_id: Redis INCR failed (%s), falling back to cache", e)
+            # Fallback to cache.set if Redis unavailable
+            if self._can_write_cache():
+                cache.set(key, cache.get(key, 0) + 1)
         return addr
 
     def release_node(self, addr: str) -> None:
         key = self._active_count_key(addr)
-        cnt = cache.get(key, 0)
-        cnt = max(0, cnt - 1)
-        if self._can_write_cache():
-            cache.set(key, cnt)
+        # Use Redis DECR for atomic decrement (works from any worker)
+        try:
+            from django_redis import get_redis_connection
+            conn = get_redis_connection('default')
+            # DECR can go negative, so check first
+            val = conn.get(key)
+            if val is not None:
+                current = int(val) if isinstance(val, (bytes, str)) else val
+                if current > 0:
+                    new_val = conn.decr(key)
+                    logger.info("release_node: decremented %s to %s (addr=%s)", key, new_val, addr)
+                else:
+                    logger.debug("release_node: %s already at 0, not decrementing", key)
+            else:
+                # Key doesn't exist, set to 0
+                conn.set(key, 0)
+                logger.debug("release_node: %s didn't exist, set to 0", key)
+        except Exception as e:
+            logger.warning("release_node: Redis DECR failed (%s), falling back to cache", e)
+            # Fallback to cache operations if Redis unavailable
+            cnt = cache.get(key, 0)
+            cnt = max(0, cnt - 1)
+            if self._can_write_cache():
+                cache.set(key, cnt)
 
     def start_scheduler(self, interval_seconds: int = 10) -> None:
         if self._scheduler is not None:
