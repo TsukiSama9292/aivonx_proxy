@@ -68,7 +68,7 @@ uv run src/manage.py migrate
 uv run src/manage.py collectstatic --noinput
 
 # 測試
-uv run src/manage.py test proxy.tests
+uv run python src/manage.py test proxy.tests account.tests logviewer.tests --verbosity 1 --keepdb
 
 # 開發（ASGI，支援串流）：
 uv run main.py --reload --port 8000
@@ -129,7 +129,7 @@ uv sync
 uv run src/manage.py migrate
 
 # 執行測試
-uv run src/manage.py test
+uv run python src/manage.py test proxy.tests account.tests logviewer.tests --verbosity 1 --keepdb
 ```
 
 請參閱專案貢獻指南（位於 `docs/`），以了解貢獻步驟、程式碼風格和 PR 指南。

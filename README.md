@@ -68,7 +68,7 @@ uv run src/manage.py migrate
 uv run src/manage.py collectstatic --noinput
 
 # Run tests
-uv run src/manage.py test proxy.tests
+uv run python src/manage.py test proxy.tests account.tests logviewer.tests --verbosity 1 --keepdb
 
 # Development (ASGI, recommended for streaming endpoints)
 uv run main.py --reload --port 8000
@@ -129,7 +129,7 @@ uv sync
 uv run src/manage.py migrate
 
 # Run tests
-uv run src/manage.py test
+uv run python src/manage.py test proxy.tests account.tests logviewer.tests --verbosity 1 --keepdb
 ```
 
 Refer to the project's Contributing guide in `docs/` for contribution steps, code style and PR guidelines.
