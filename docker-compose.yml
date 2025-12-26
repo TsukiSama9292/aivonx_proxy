@@ -8,7 +8,7 @@ x-default-opts: &default-opts
 services:
   django:
     <<: *default-opts
-    container_name: backend
+    container_name: django
     build:
       context: .
       dockerfile: Dockerfile
@@ -21,6 +21,8 @@ services:
   redis:
     <<: *default-opts
     container_name: redis
+    volumes:
+      - redis:/data
     ports:
       - "6379:6379"
     image: redis:8.4-alpine3.22
@@ -36,6 +38,7 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - pg:/var/lib/postgresql
   ollama:
     <<: *default-opts
     container_name: ollama
@@ -52,3 +55,5 @@ networks:
 volumes:
   pgdata:
   ollama_data:
+  redis:
+  pg:
