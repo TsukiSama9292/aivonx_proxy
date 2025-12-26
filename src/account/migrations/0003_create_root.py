@@ -34,6 +34,7 @@ def create_root_user(apps, schema_editor):
 class Migration(migrations.Migration):
     dependencies = [
         ("account", "0002_delete_user"),
+        ("auth", "0001_initial"),
     ]
 
     operations = [
