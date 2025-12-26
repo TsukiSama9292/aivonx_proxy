@@ -43,23 +43,6 @@ services:
       retries: 5
       start_period: 10s
 
-  ollama:
-    <<: *default-opts
-    container_name: ollama
-    image: ollama/ollama:latest
-    volumes:
-      - ollama_data:/data
-    healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "ollama list || exit 1"
-        ]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-      start_period: 10s
-
   django:
     <<: *default-opts
     container_name: django
@@ -75,8 +58,6 @@ services:
         condition: service_healthy
       postgres:
         condition: service_healthy
-      ollama:
-        condition: service_healthy
     entrypoint: >
       bash -c "
       uv run src/manage.py migrate &&
@@ -89,6 +70,5 @@ networks:
 
 volumes:
   pgdata:
-  ollama_data:
   redis:
   pg:

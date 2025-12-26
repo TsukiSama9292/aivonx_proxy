@@ -38,6 +38,12 @@ dev = [
     "nest_asyncio",
     "jupyterlab_widgets",
 ]
+web = [
+    "mkdocs",
+    "mkdocs-material",
+    "mkdocs-static-i18n",
+    "mkdocstrings[python]",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/"]

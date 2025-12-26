@@ -1,0 +1,92 @@
+site_name: Aivonx Proxy Documentation
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - content.code.copy
+    - search.suggest
+  palette:
+      - media: "(prefers-color-scheme: light)"
+        scheme: default
+        primary: white
+        toggle:
+          icon: material/weather-sunny
+          name: Switch to dark mode
+      - media: "(prefers-color-scheme: dark)"
+        scheme: slate
+        primary: black
+        accent: cyan
+        toggle:
+          icon: material/weather-night
+          name: Switch to light mode
+
+plugins:
+  - search:
+  - i18n:
+      languages:
+        - locale: en
+          name: English
+          default: true
+          build: true
+        - locale: zh
+          name: 繁體中文
+          default: false
+          build: true
+          nav_translations:
+            Home: 首頁
+            Getting Started: 開始使用
+            Introduction: 簡介
+            Requirements: 環境需求
+            Quick Start Guide: 快速上手
+            Deployment Options: 部署選項
+            FAQ: 常見問題
+            Reference: 參考文件
+            Configuration: 配置說明
+            API Documentation: API 文件
+            CLI Commands: 指令介面
+            Resources: 相關資源
+            Troubleshooting: 故障排除
+            Security: 安全性
+            Glossary: 術語表
+            Development: 開發指南
+            Contributing: 貢獻指南
+            Code Structure: 程式碼架構
+            Testing: 測試說明
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Introduction: getting_started/introduction.md
+      - Requirements: getting_started/requirements.md
+      - Quick Start Guide: getting_started/quick_start_guide.md
+      - Deployment Options: getting_started/deployment_options.md
+      - FAQ: getting_started/faq.md
+  - Reference:
+      - Configuration: reference/configuration.md
+      - API Documentation: reference/api_documentation.md
+      - CLI Commands: reference/cli_commands.md
+  - Resources:
+      - Troubleshooting: resources/troubleshooting.md
+      - Security: resources/security.md
+      - Glossary: resources/glossary.md
+  - Development:
+      - Contributing: development/contributing.md
+      - Code Structure: development/code_structure.md
+      - Testing: development/testing.md
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - admonition
+  - pymdownx.details
+  - attr_list
+  - md_in_html
