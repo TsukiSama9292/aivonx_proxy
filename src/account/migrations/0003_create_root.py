@@ -41,9 +41,8 @@ def create_root_user(apps, schema_editor):
                 field_names = [f.name for f in User._meta.get_fields()]
                 if 'last_login' in field_names:
                     user_data['last_login'] = now
-            except Exception:
-                # ignore introspection errors
-                pass
+            except Exception as e:
+                logger.debug("create_root_user: introspection for last_login failed: %s", e)
 
             # Create directly instead of calling create_superuser to avoid custom manager side-effects
             try:

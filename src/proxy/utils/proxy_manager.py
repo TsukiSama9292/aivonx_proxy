@@ -70,8 +70,9 @@ class HAProxyManager:
                 if owner:
                     return val == owner
                 return False
-            except Exception:
+            except Exception as e:
                 # If we can't reach Redis, conservatively deny write privileges.
+                logger.debug("_can_write_cache: redis check failed: %s", e)
                 return False
         except Exception:
             return False
@@ -80,9 +81,9 @@ class HAProxyManager:
         if not nodes:
             try:
                 self.refresh_from_db()
-            except Exception:
-                # DB may not be ready at import/initialization time; ignore
-                pass
+            except Exception as e:
+                # DB may not be ready at import/initialization time; log and continue
+                logger.debug("init nodes from DB failed during init: %s", e)
 
     async def ping_node(self, addr: str) -> tuple[bool, float]:
         # Ollama exposes a base-url health response (e.g. GET http://host:port
@@ -326,8 +327,8 @@ class HAProxyManager:
                         node_failed = True
                     try:
                         await asyncio.sleep(0.2 * (attempt + 1))
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug("sleep between attempts failed: %s", e)
 
             if resp is not None and resp.status_code == 200:
                 try:
@@ -778,8 +779,8 @@ class HAProxyManager:
                     logger.debug("poll-refresh: health_check_all failed")
                 try:
                     conn.delete('ha_refresh_request')
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("poll-refresh: failed to delete ha_refresh_request: %s", e)
             except Exception:
                 # best-effort, ignore polling errors
                 return
@@ -794,8 +795,8 @@ class HAProxyManager:
         if self._scheduler:
             try:
                 self._scheduler.shutdown(wait=False)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("HAProxyManager.close: scheduler.shutdown failed: %s", e)
 
 
 _global_manager: HAProxyManager | None = None
@@ -811,10 +812,10 @@ def init_global_manager(nodes: List[str], health_path: str = "/health") -> HAPro
 
             try:
                 _django_apps.get_app_config("proxy").proxy_manager = _global_manager
-            except Exception:
-                pass
-        except Exception:
-            pass
+            except Exception as e:
+                logger.debug("init_global_manager: attach to AppConfig failed: %s", e)
+        except Exception as e:
+            logger.debug("init_global_manager: django apps attach failed: %s", e)
     return _global_manager
 
 
@@ -828,7 +829,7 @@ def init_global_manager_from_db(health_path: str = "/api/health") -> HAProxyMana
             mgr.refresh_from_db()
         except Exception:
             # DB might be unavailable during migrations/startup
-            pass
+            logger.debug("refresh_from_db failed during init")
         def _run_coro(coro):
             # Run or schedule a coroutine depending on whether an event loop is running.
             try:
@@ -848,7 +849,7 @@ def init_global_manager_from_db(health_path: str = "/api/health") -> HAProxyMana
                     asyncio.run(coro)
                 except Exception:
                     # best-effort; ignore failures here
-                    pass
+                    logger.debug("failed to run coroutine")
 
         try:
             # perform an initial models refresh so caches/DB `available_models` are populated
@@ -901,7 +902,8 @@ def init_global_manager_from_db(health_path: str = "/api/health") -> HAProxyMana
                         try:
                             import socket, os
                             mgr._leader_owner = f"{socket.gethostname()}:{os.getpid()}"
-                        except Exception:
+                        except Exception as e:
+                            logger.debug("init_global_manager_from_db: failed to determine leader owner: %s", e)
                             mgr._leader_owner = None
                 except Exception:
                     got_lock = False
@@ -910,8 +912,8 @@ def init_global_manager_from_db(health_path: str = "/api/health") -> HAProxyMana
                         # perform a sync DB refresh so ACTIVE_POOL_KEY/NODE_ID_MAP_KEY are set
                         try:
                             mgr.refresh_from_db()
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            logger.debug("init_global_manager_from_db: refresh_from_db failed: %s", e)
                         # also trigger async refreshes (models + health) to repopulate caches
                         _run_coro(mgr.refresh_models_all())
                         _run_coro(mgr.health_check_all())

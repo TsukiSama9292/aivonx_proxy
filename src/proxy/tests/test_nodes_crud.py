@@ -1,6 +1,7 @@
 from django.test import TestCase
 from django.core.cache import cache
 from unittest.mock import patch, MagicMock
+import logging
 
 # Patch get_global_manager at module level BEFORE importing models to prevent signal blocking
 import proxy.utils.proxy_manager as pm_module
@@ -24,16 +25,25 @@ class NodeCRUDTests(TestCase):
             conn = get_redis_connection('default')
             conn.delete('ha_manager_leader')
             conn.delete('ha_refresh_request')
-        except Exception:
-            pass
+        except Exception as e:
+            logging.getLogger('proxy.tests').debug("setUpClass: redis cleanup failed: %s", e)
         
         # Clear Django cache
         cache.clear()
         # Ensure DB is clean before these CRUD tests
         try:
             NodeModel.objects.all().delete()
-        except Exception:
-            pass
+        except Exception as e:
+            logging.getLogger('proxy.tests').debug("setUpClass: DB cleanup failed: %s", e)
+        
+        # Create CPU node for testing
+        cls.cpu_node = NodeModel.objects.create(
+            name="CPU",
+            address="ollama",
+            port=11434,
+            active=True,
+            available_models=[]
+        )
 
     @classmethod
     def tearDownClass(cls):
@@ -43,8 +53,8 @@ class NodeCRUDTests(TestCase):
             conn = get_redis_connection('default')
             conn.delete('ha_manager_leader')
             conn.delete('ha_refresh_request')
-        except Exception:
-            pass
+        except Exception as e:
+            logging.getLogger('proxy.tests').debug("tearDownClass: redis cleanup failed: %s", e)
         
         super().tearDownClass()
 
@@ -103,7 +113,7 @@ class NodeCRUDTests(TestCase):
         NodeModel.objects.create(name="n3", address="a3", port=3, active=True)
 
         active_nodes = NodeModel.objects.filter(active=True)
-        self.assertEqual(active_nodes.count(), 2)
+        self.assertEqual(active_nodes.count(), 3)  # CPU node + n1 + n3
         
         inactive_nodes = NodeModel.objects.filter(active=False)
         self.assertEqual(inactive_nodes.count(), 1)

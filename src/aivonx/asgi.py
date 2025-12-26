@@ -86,10 +86,10 @@ async def application(scope, receive, send):
 									if val is None:
 										try:
 											conn.set(leader_key, owner, ex=leader_lock_timeout)
-										except Exception:
-											logger.debug("ASGI startup: failed to write owner to redis after cache.add")
-								except Exception:
-									pass
+										except Exception as e:
+											logger.debug("ASGI startup: failed to write owner to redis after cache.add: %s", e)
+								except Exception as e:
+									logger.debug("ASGI startup: redis owner read/write path failed: %s", e)
 							except Exception:
 								logger.debug("ASGI startup: owner write skipped (socket/import failed)")
 
@@ -122,8 +122,8 @@ async def application(scope, receive, send):
 							# attach owner to manager for shutdown/inspection
 							try:
 								mgr._leader_owner = owner
-							except Exception:
-								pass
+							except Exception as e:
+								logger.debug("ASGI startup: failed to attach _leader_owner to manager: %s", e)
 							# ensure redis conn exists for renew loop
 							try:
 								from django_redis import get_redis_connection
@@ -188,11 +188,11 @@ async def application(scope, receive, send):
 								val = conn.get(leader_key)
 								ttl = conn.ttl(leader_key)
 								logger.info("ASGI startup: redis raw key val=%s ttl=%s", val, ttl)
-							except Exception:
-								logger.info("ASGI startup: redis key inspection failed")
-						except Exception:
+							except Exception as e:
+								logger.info("ASGI startup: redis key inspection failed: %s", e)
+						except Exception as e:
 							# not a django-redis backend or inspection failed
-							pass
+							logger.debug("ASGI startup: django-redis unavailable or inspection error: %s", e)
 						
 						if got_lock:
 							try:
@@ -242,8 +242,8 @@ async def application(scope, receive, send):
 							if renew_task:
 								try:
 									renew_task.cancel()
-								except Exception:
-									pass
+								except Exception as e:
+									logger.debug("ASGI shutdown: renew task cancel failed: %s", e)
 							if owner:
 								try:
 									from django_redis import get_redis_connection
@@ -254,8 +254,8 @@ async def application(scope, receive, send):
 										try:
 											from django.core.cache import cache
 											cache.delete(leader_key)
-										except Exception:
-											pass
+										except Exception as e:
+											logger.debug("ASGI shutdown: delete leader key from cache failed: %s", e)
 									logger.info("ASGI shutdown: released leader lock (owner=%s)", owner)
 								except Exception:
 									logger.debug("ASGI shutdown: failed to release leader lock cleanly")

@@ -2,6 +2,7 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 from django.core.cache import cache
 from unittest.mock import MagicMock, patch
+import logging
 
 # Module-level mock manager to prevent Redis/leader blocking during imports
 import proxy.utils.proxy_manager as pm_module
@@ -31,8 +32,8 @@ class ViewsProxyTests(TestCase):
 			conn = get_redis_connection('default')
 			conn.delete('ha_manager_leader')
 			conn.delete('ha_refresh_request')
-		except Exception:
-			pass
+		except Exception as e:
+			logging.getLogger('proxy.tests').debug("setUpClass: redis cleanup failed: %s", e)
 		cache.clear()
 
 	@classmethod
@@ -42,8 +43,8 @@ class ViewsProxyTests(TestCase):
 			conn = get_redis_connection('default')
 			conn.delete('ha_manager_leader')
 			conn.delete('ha_refresh_request')
-		except Exception:
-			pass
+		except Exception as e:
+			logging.getLogger('proxy.tests').debug("tearDownClass: redis cleanup failed: %s", e)
 		super().tearDownClass()
 
 	def setUp(self):

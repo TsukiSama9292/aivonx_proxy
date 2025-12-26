@@ -142,8 +142,8 @@ def health(request):
                 cfg_nodes = getattr(mgr, 'nodes', None)
                 if cfg_nodes:
                     active = list(cfg_nodes)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("health: failed to read cfg_nodes from manager: %s", e)
     except Exception:
         active = []
 

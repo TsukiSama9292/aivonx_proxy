@@ -94,38 +94,45 @@ def proxy_generate(request):
         async def stream_generator():
             try:
                 import httpx
-                async with httpx.AsyncClient(timeout=None) as client:
+                from django.conf import settings
+                timeout = getattr(settings, 'PROXY_UPSTREAM_TIMEOUT', 30.0)
+                async with httpx.AsyncClient(timeout=timeout) as client:
                     async with client.stream("POST", url, headers=headers, content=body_bytes) as resp:
                         content_type = resp.headers.get("content-type", "application/x-ndjson")
                         # yield chunks as they arrive
                         async for chunk in resp.aiter_bytes():
                             if chunk:
                                 yield chunk
+            except Exception as e:
+                logger.exception("proxy stream_generator upstream error: %s", e)
+                raise
             finally:
                 try:
                     mgr.release_node(node_addr)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("proxy stream_generator: release_node failed: %s", e)
 
         # Do not set Content-Length so response is streamed
         return StreamingHttpResponse(stream_generator(), content_type="application/x-ndjson")
 
     # non-streaming path (buffered)
     import httpx
+    from django.conf import settings
     
     async def do_request():
+        timeout = getattr(settings, 'PROXY_UPSTREAM_TIMEOUT', 60.0)
         try:
-            async with httpx.AsyncClient(timeout=60.0) as client:
+            async with httpx.AsyncClient(timeout=timeout) as client:
                 resp = await client.post(url, headers=headers, content=body_bytes)
                 return HttpResponse(resp.content, status=resp.status_code, content_type=resp.headers.get("content-type", "application/json"))
-        except Exception:
-            logger.exception("proxy generate request failed")
+        except Exception as e:
+            logger.exception("proxy generate request failed: %s", e)
             return JsonResponse({"error": "upstream request failed"}, status=502)
         finally:
             try:
                 mgr.release_node(node_addr)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("proxy do_request: release_node failed: %s", e)
     
     return async_to_sync(do_request)()
 
@@ -240,8 +247,8 @@ def proxy_chat(request):
             finally:
                 try:
                     mgr.release_node(node_addr)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("proxy_chat non-stream release_node failed: %s", e)
         
         return async_to_sync(do_request)()
 
@@ -253,8 +260,8 @@ def proxy_chat(request):
         finally:
             try:
                 mgr.release_node(node_addr)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("proxy_embed do_request release_node failed: %s", e)
 
     return StreamingHttpResponse(_stream_and_release(), content_type="application/json")
 
@@ -341,8 +348,8 @@ def proxy_embed(request):
         finally:
             try:
                 mgr.release_node(node_addr)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("proxy_embeddings do_request release_node failed: %s", e)
     
     return async_to_sync(do_request)()
 
@@ -421,8 +428,8 @@ def proxy_embeddings(request):
         finally:
             try:
                 mgr.release_node(node_addr)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("proxy embeddings do_request release_node failed: %s", e)
     
     return async_to_sync(do_request)()
 
@@ -603,8 +610,8 @@ def proxy_ps(request):
         try:
             for model_name in (n.available_models or []):
                 db_map.setdefault(model_name, []).append(addr)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("proxy_tags: failed to read available_models for node %s: %s", n.id, e)
 
     # Aggregate final model list (union of DB-reported models)
     final_models = []

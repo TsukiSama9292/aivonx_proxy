@@ -29,13 +29,13 @@ def load_tests(loader, tests, pattern):
     ]
 
     # Load ordered modules first (ignore failures to import non-existent)
+    import logging
     for mod_name in ordered:
         try:
             mod = importlib.import_module(mod_name)
             suite.addTests(loader.loadTestsFromModule(mod))
-        except Exception:
-            # if module not present, skip
-            pass
+        except Exception as e:
+            logging.getLogger('proxy.tests').debug("load_tests: failed to import %s: %s", mod_name, e)
 
     # Discover remaining modules in package and load any not already loaded
     package = importlib.import_module('proxy.tests')
@@ -46,8 +46,7 @@ def load_tests(loader, tests, pattern):
         try:
             mod = importlib.import_module(full)
             suite.addTests(loader.loadTestsFromModule(mod))
-        except Exception:
-            # skip modules we can't import
-            pass
+        except Exception as e:
+            logging.getLogger('proxy.tests').debug("load_tests: skipping module %s due to import error: %s", full, e)
 
     return suite

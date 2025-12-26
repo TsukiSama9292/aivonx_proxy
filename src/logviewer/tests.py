@@ -5,12 +5,14 @@ from datetime import datetime, timedelta
 from django.test import TestCase
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
+from django.utils.crypto import get_random_string
 
 
 class LogsAPIViewTests(TestCase):
 	def setUp(self):
 		User = get_user_model()
-		user = User.objects.create_user(username='logtest', password='pass')
+		pw = get_random_string(12)
+		user = User.objects.create_user(username='logtest', password=pw)
 		self.client = APIClient()
 		self.client.force_authenticate(user=user)
 

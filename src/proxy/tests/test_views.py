@@ -2,6 +2,8 @@ from django.test import TestCase
 from django.core.cache import cache
 from rest_framework.test import APIClient
 from unittest.mock import MagicMock, patch
+import logging
+from django.utils.crypto import get_random_string
 
 # Mock manager at module level to prevent _get_manager blocking
 import proxy.utils.proxy_manager as pm_module
@@ -35,8 +37,8 @@ class ProxyViewsTests(TestCase):
             conn = get_redis_connection('default')
             conn.delete('ha_manager_leader')
             conn.delete('ha_refresh_request')
-        except Exception:
-            pass
+        except Exception as e:
+            logging.getLogger('proxy.tests').debug("setUpClass: redis cleanup failed: %s", e)
         cache.clear()
 
     @classmethod
@@ -46,8 +48,8 @@ class ProxyViewsTests(TestCase):
             conn = get_redis_connection('default')
             conn.delete('ha_manager_leader')
             conn.delete('ha_refresh_request')
-        except Exception:
-            pass
+        except Exception as e:
+            logging.getLogger('proxy.tests').debug("tearDownClass: redis cleanup failed: %s", e)
         super().tearDownClass()
 
     def setUp(self):
@@ -150,7 +152,8 @@ class ProxyViewsTests(TestCase):
     def test_proxy_config_get(self):
         """Test GET /api/proxy/config returns config."""
         # Create test user for authentication
-        user = User.objects.create_user(username='testuser', password='testpass')
+        test_pw = get_random_string(12)
+        user = User.objects.create_user(username='testuser', password=test_pw)
         self.client.force_authenticate(user=user)
         
         response = self.client.get('/api/proxy/config')
@@ -162,7 +165,8 @@ class ProxyViewsTests(TestCase):
 
     def test_proxy_config_update(self):
         """Test PUT /api/proxy/config updates strategy."""
-        user = User.objects.create_user(username='testuser', password='testpass')
+        test_pw = get_random_string(12)
+        user = User.objects.create_user(username='testuser', password=test_pw)
         self.client.force_authenticate(user=user)
         
         response = self.client.put(

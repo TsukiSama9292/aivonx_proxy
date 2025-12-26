@@ -18,13 +18,14 @@ def _parse_time(value: str) -> Optional[datetime]:
         if v.endswith('Z'):
             v = v[:-1] + '+00:00'
         return datetime.fromisoformat(v)
-    except Exception:
+    except (ValueError, TypeError):
+        # not ISO format
         pass
     # fallback known formats
     for fmt in ("%Y-%m-%d %H:%M:%S,%f", "%Y-%m-%d %H:%M:%S"):
         try:
             return datetime.strptime(value, fmt)
-        except Exception:
+        except ValueError:
             continue
     return None
 
@@ -92,7 +93,7 @@ class LogsAPIView(APIView):
                         continue
                     try:
                         obj = json.loads(line)
-                    except Exception:
+                    except (json.JSONDecodeError, ValueError):
                         # skip non-json lines
                         continue
 

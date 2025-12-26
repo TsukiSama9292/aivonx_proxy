@@ -4,6 +4,8 @@ from rest_framework.response import Response
 from .models import node
 from .serializers import NodeSerializer
 import httpx
+import logging
+logger = logging.getLogger('proxy')
 
 @extend_schema(tags=['Node'])
 class NodeViewSet(viewsets.ModelViewSet):
@@ -60,10 +62,10 @@ class NodeViewSet(viewsets.ModelViewSet):
             if mgr is not None:
                 try:
                     mgr.refresh_from_db()
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("NodeViewSet.create: refresh_from_db failed: %s", e)
         except Exception:
-            pass
+            logger.debug("NodeViewSet.create: failed to trigger manager refresh")
 
         out_ser = NodeSerializer(instance, context={'request': request})
         headers = self.get_success_headers(out_ser.data)
@@ -121,10 +123,10 @@ class NodeViewSet(viewsets.ModelViewSet):
             if mgr is not None:
                 try:
                     mgr.refresh_from_db()
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("NodeViewSet._perform_update: refresh_from_db failed: %s", e)
         except Exception:
-            pass
+            logger.debug("NodeViewSet._perform_update: failed to trigger manager refresh")
 
         out_ser = NodeSerializer(updated, context={'request': request})
         return Response(out_ser.data)
