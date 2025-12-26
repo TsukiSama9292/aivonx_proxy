@@ -36,7 +36,7 @@ jobs:
         run: uv venv && uv pip install -e .[web]
 
       - name: Build
-        run: uv run mkdocs build -f mkdocs.yml -d ./dist
+        run: uv run --group web mkdocs build -f mkdocs.yml -d ./dist
 
     #   - name: Copy CNAME file
     #     run: echo '' > ./dist/CNAME
