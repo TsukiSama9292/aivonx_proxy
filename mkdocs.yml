@@ -30,10 +30,12 @@ plugins:
           name: English
           default: true
           build: true
-        - locale: zh
+          link: /aivonx_proxy/
+        - locale: zh_TW
           name: 繁體中文
           default: false
           build: true
+          link: /aivonx_proxy/zh/
           nav_translations:
             Home: 首頁
             Getting Started: 開始使用
