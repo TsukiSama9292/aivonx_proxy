@@ -1,4 +1,5 @@
 site_name: Aivonx Proxy Documentation
+site_url: https://tsukisama9292.github.io/aivonx_proxy/
 
 theme:
   name: material
