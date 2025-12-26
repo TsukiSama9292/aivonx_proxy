@@ -34,7 +34,7 @@ plugins:
           name: 繁體中文
           default: false
           build: true
-          link: /aivonx_proxy/zh/
+          link: /zh/
           nav_translations:
             Home: 首頁
             Getting Started: 開始使用
