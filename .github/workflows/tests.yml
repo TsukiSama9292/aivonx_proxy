@@ -35,5 +35,5 @@ jobs:
 
       - name: Run Django tests in backend container
         run: |
-          docker compose exec -T backend \
+          docker compose exec -T django \
             uv run python -X utf8 src/manage.py test proxy.tests --verbosity 1
