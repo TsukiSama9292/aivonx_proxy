@@ -31,8 +31,24 @@ jobs:
 
       - name: Build & start services
         run: |
-          docker compose up -d --build
+          docker compose build --quiet
+          docker compose up -d
+      
+      - name: Check Django container status
+        run: |
+          STATUS=$(docker inspect -f '{{.State.Status}}' $(docker compose ps -q django))
+          if [ "$STATUS" != "running" ]; then
+            echo "::error::Django container is not running (status=$STATUS)"
+            docker compose logs django
+            exit 1
+          fi
+      
+      - name: export django static files
+        run: |
+          docker compose exec -T django \
+            uv run python -X utf8 src/manage.py collectstatic --noinput
 
+          
       - name: Run Django tests in backend container
         run: |
           docker compose exec -T django \
