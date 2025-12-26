@@ -1,133 +1,117 @@
 ## aivonx_proxy — Ollama Reverse Proxy
 
-Lightweight reverse-proxy and HA manager for Ollama model-serving nodes.
+Lightweight reverse proxy and HA manager for Ollama model-serving nodes. The project provides a unified API gateway, node management, model discovery, and streaming proxy support.
 
-<p align="center">
-  <img
-    src="./asstes/images/AIVONX_PROXY.png"
-    alt="AIVONX Proxy"
-    width="200"
-    height="200"
-  />
-</p>
-
-<p align="center">
-  <a href="https://github.com/TsukiSama9292/aivonx_proxy/commits/main">
-    <img src="https://img.shields.io/github/last-commit/TsukiSama9292/aivonx_proxy" alt="Last Commit">
-  </a>
-  <a href="https://github.com/TsukiSama9292/aivonx_proxy/actions/workflows/tests.yml">
-    <img src="https://github.com/TsukiSama9292/aivonx_proxy/actions/workflows/tests.yml/badge.svg" alt="CI Status">
-  </a>
-</p>
-
-## Purpose
-
-- Provide a unified API under `/api/proxy` that forwards requests to one or
-  more Ollama nodes, selecting the best node automatically based on configured
-  HA/load-balancing strategies.
-- Make endpoints model-aware (only route requests to nodes exposing the
-  requested model) and support streaming responses for real-time proxies.
-
-## Core features
-- Support Ollama API: add url `https://your-domain` for your tools
-- Ollama reverse proxy: configure your tools to use the proxy as the Ollama
-  API endpoint (for example `http://localhost:8000`).
-- CRUD management for Ollama nodes (`/api/proxy/nodes`)
-- Health endpoint: `GET /api/proxy` — returns 200 when any node is available
-- Model discovery: `GET /api/tags` — lists models available on nodes
-- Proxy endpoints: `POST /api/proxy/chat`, `/generate`, `/embed`, `/embeddings`
-  that forward requests to appropriate nodes and support streaming
-- HA/Load strategies: `least_active` (default, load-balancing) and `lowest_latency`
-  - Periodic background tasks: health checks and model refresh (default: 1 minute)
+**Key features**
+- Node management: create, update and remove Ollama nodes and manage active/standby pools.
+- Proxy API: route requests under `/api/proxy` to nodes that expose the requested model, with streaming support.
+- Model discovery: list models available on nodes (`GET /api/tags`).
+- HA / load strategies: `least_active` (default) and `lowest_latency`.
+- Health check: `GET /api/proxy` (returns healthy when any node is available).
 
 ## Quick Start
 
-This project now prioritizes the Web UI as the primary user interface for managing nodes, models and proxy configuration. The Web UI provides full CRUD for the proxy APIs and is the recommended entry point for most users.
+Run commands from the project root (this repo includes `docker-compose.yml` for an all-in-one environment). Docker Compose is the recommended quick-start method.
 
-### 1. Using the Web UI (recommended)
-
-1. Start the app with Docker Compose:
+1. Start services using Docker Compose:
 
 ```bash
 docker compose up -d
 ```
 
-2. Open your browser at http://localhost:8000 — the management UI provides pages to create, update, list, and delete Ollama nodes, proxy settings, and more.
+2. Open the web UI and API docs in your browser:
 
-3. Default administrative credentials:
+- Web UI: http://localhost:8000
+- Interactive API docs: http://localhost:8000/swagger or http://localhost:8000/redoc
+
+3. Default administrative credentials (change immediately in production):
 
 - Username: `root`
 - Password: `changeme`
 
-To change the default `root` password, set `ROOT_PASSWORD` in the repository `.env` file at the project root (one level above `src`), for example:
+To override the initial `root` password during deployment, set `ROOT_PASSWORD` in a `.env` file placed at the project root (same level as `src/`):
 
 ```env
 ROOT_PASSWORD=your_secure_password_here
 ```
 
-### 2. Docker / CLI (advanced)
+### Using `uv` to run Python tasks (required)
 
-If you prefer running the app outside Docker or need to run management tasks, use the included `uv` CLI. The CLI is useful for development, running migrations, or launching with hot-reload.
-
-Install runtime helpers:
+This project uses the `uv` helper for consistent runtime and environment management. Use `uv run` for Python entrypoints:
 
 ```bash
+# Install / sync the development environment
 uv sync
-```
 
-Run database migrations:
+# Run database migrations
+uv run src/manage.py migrate
 
-```bash
-cd src
-uv run manage.py migrate
-```
+# Collect static files after changing static assets
+uv run src/manage.py collectstatic --noinput
 
-Development (ASGI — recommended for streaming endpoints):
+# Run tests
+uv run src/manage.py test proxy.tests
 
-```bash
-# from repository root
+# Development (ASGI, recommended for streaming endpoints)
 uv run main.py --reload --port 8000
 ```
 
-Static assets note (development)
---------------------------------
+Note: streaming endpoints work best under an ASGI server (for example `uvicorn`) to avoid WSGI buffering issues.
 
-If you run the app locally with an ASGI server (for example via `uv run main.py` or `python main.py`) and you are using WhiteNoise or another static middleware, static files will be served from `STATIC_ROOT`. You need to collect static assets after making changes so the ASGI server can serve the updated files:
+## Deployment and environment variables
+
+Supported deployment options:
+- Docker Compose (development / simple deployment)
+- Kubernetes (production, use managed DB and Redis)
+- ASGI (recommended for streaming) or WSGI (synchronous workloads)
+
+Important environment variables (see `src/aivonx/settings.py` for full list):
+
+- `DJANGO_SECRET_KEY` — required in production
+- `DJANGO_DEBUG` — set to `False` in production
+- `DJANGO_ALLOWED_HOSTS` — comma-separated allowed hosts
+- `ROOT_PASSWORD` — default admin password
+- Database: `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_HOST`, `POSTGRES_PORT`
+- Cache: `REDIS_URL`
+
+Production checklist (summary):
+- Set a strong `DJANGO_SECRET_KEY`
+- Disable debug (`DJANGO_DEBUG=false`)
+- Configure `ALLOWED_HOSTS`
+- Use production-grade PostgreSQL and Redis
+- Configure SSL/TLS, logging and backups
+- Change the default `root` password
+
+## API and core endpoints (summary)
+
+After starting the app, interactive API docs are available at `/swagger` and `/redoc`. Common endpoints include:
+
+- Health: `GET /api/health`
+- List models: `GET /api/tags`
+- Proxy generate: `POST /api/generate`, `POST /api/chat`
+- Embeddings: `POST /api/embed`, `POST /api/embeddings`
+- Proxy state: `GET /api/proxy/state`
+- Node management: `/api/proxy/nodes` (CRUD)
+
+See the API docs for full details and request/response schemas.
+
+## For developers
+
+- Source code root: `src/`
+- Proxy implementation: `src/proxy/`
+- Settings: `src/aivonx/settings.py`
+
+Recommended development workflow:
 
 ```bash
-python src/manage.py collectstatic --noinput
+# Sync environment
+uv sync
+
+# Apply migrations
+uv run src/manage.py migrate
+
+# Run tests
+uv run src/manage.py test
 ```
 
-If you are using Django's `runserver` during development (`python src/manage.py runserver`) and `DEBUG=True`, `collectstatic` is not required because `runserver` serves app `static/` directories directly.
-
-Run tests:
-
-```bash
-cd src
-uv run manage.py test proxy.tests
-```
-
-## Configuration Parameters
-
-This section documents common environment variables and parameters you may set when running the app (Docker, `.env`, or host environment). Defaults shown are what the repository uses for development; adjust for production.
-
-- `PORT` — Host port mapping for Docker Compose. Default: `8000`. (Docker Compose `ports: "${PORT:-8000}:${PORT:-8000}"`.)
-- `DJANGO_PORT` — Application port used by some scripts; default `8000` when present in `.env`.
-- `DJANGO_DEBUG` — Enable Django debug mode. Values: `True`/`False` (case-insensitive). Default: `True` in development.
-- `DJANGO_SECRET_KEY` — Django secret key. In production **must** be set in environment; if not set while `DEBUG=False` the app will raise an error. A development default exists in `src/aivonx/settings.py` (replace it for production).
-- `ROOT_PASSWORD` — Initial admin password for the Web UI (development convenience). Set this in the repository `.env` (one level above `src`) to override the default `changeme`.
-- `DJANGO_ALLOWED_HOSTS` — Comma-separated list of allowed hosts. Use with `DJANGO_ALLOWED_HOSTS=host1,host2`.
-- `DJANGO_CORS_ALLOWED_ORIGINS` / `DJANGO_CSRF_TRUSTED_ORIGINS` — Comma-separated origins; scheme is normalized by the app.
-
-## Notes
-
-- Streaming endpoints behave best under an ASGI server (uvicorn) to avoid WSGI
-  buffering issues.
-- The HA manager stores runtime state in Django cache. On startup the manager
-  populates state from the database and schedules periodic refreshes (default
-  every minute).
-
-## Docs
-
-See [Documents](./docs/aivonx_proxy/README.md) for architecture, API reference, testing and
-deployment instructions.
+Refer to the project's Contributing guide in `docs/` for contribution steps, code style and PR guidelines.
