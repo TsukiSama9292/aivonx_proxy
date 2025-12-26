@@ -2,43 +2,38 @@ name: tests
 
 on:
   workflow_dispatch:
-  # push:
-  #   branches: [main]
-  #   paths:
-  #     - "**/*.py"
-  #     - "pyproject.toml"
-  #     - ".github/workflows/tests.yml"
-  # pull_request:
-  #   branches: [main]
+  push:
+    branches: [main]
+    paths:
+      - "**/*.py"
+      - "pyproject.toml"
+      - "docker-compose.yml"
+      - ".github/workflows/tests.yml"
+  pull_request:
+    branches: [main]
 
 jobs:
   test:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-14]
-        python-version: ["3.12"]
-
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
 
     concurrency:
-      group: ${{ github.workflow }}-${{ github.ref }}-${{ matrix.os }}-${{ matrix.python-version }}
+      group: ${{ github.workflow }}-${{ github.ref }}
       cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
+      - name: Show Docker version
+        run: |
+          docker version
+          docker compose version
 
-      - name: Install uv
-        run: pip install uv
-        
-      - name: Create uv venv
-        run: uv venv
+      - name: Build & start services
+        run: |
+          docker compose up -d --build
 
-      - name: Run tests
-        run: uv run python -X utf8 src/manage.py test proxy.tests --verbosity 1
+      - name: Run Django tests in backend container
+        run: |
+          docker compose exec -T backend \
+            uv run python -X utf8 src/manage.py test proxy.tests --verbosity 1
