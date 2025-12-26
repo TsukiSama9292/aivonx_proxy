@@ -9,6 +9,7 @@ on:
       - "docs/**/*.md"
       - "pyproject.toml"
       - ".github/workflows/web.yml"
+      - "mkdocs.yml"
   pull_request:
     branches: [main]
     
