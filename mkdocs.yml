@@ -1,5 +1,6 @@
 site_name: Aivonx Proxy Documentation
 site_url: https://tsukisama9292.github.io/aivonx_proxy/
+use_directory_urls: true
 
 theme:
   name: material
@@ -30,11 +31,12 @@ plugins:
           name: English
           default: true
           build: true
+          link: /aivonx_proxy/
         - locale: zh
           name: 繁體中文
           default: false
           build: true
-          link: /zh/
+          link: /aivonx_proxy/zh/
           nav_translations:
             Home: 首頁
             Getting Started: 開始使用
