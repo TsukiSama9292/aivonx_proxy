@@ -29,11 +29,14 @@ jobs:
         with:
           python-version: '3.12'
           
-      - name: Install Dependencies
-        run: pip install -e .[web]
+      - name: Install uv
+        run: pip install uv
+        
+      - name: Install dependencies
+        run: uv pip install -e .[web]
 
       - name: Build
-        run: mkdocs build -f mkdocs.yml -d ./dist
+        run: uv run mkdocs build -f mkdocs.yml -d ./dist
 
     #   - name: Copy CNAME file
     #     run: echo '' > ./dist/CNAME
