@@ -2,14 +2,14 @@ name: tests
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - "**/*.py"
-      - "pyproject.toml"
-      - ".github/workflows/tests.yml"
-  pull_request:
-    branches: [main]
+  # push:
+  #   branches: [main]
+  #   paths:
+  #     - "**/*.py"
+  #     - "pyproject.toml"
+  #     - ".github/workflows/tests.yml"
+  # pull_request:
+  #   branches: [main]
 
 jobs:
   test:
