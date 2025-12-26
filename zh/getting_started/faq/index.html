@@ -656,7 +656,7 @@
   <a href="#_3" class="md-nav__link">
     <span class="md-ellipsis">
       
-        它解決什麼問題？
+        它解決了什麼問題？
       
     </span>
   </a>
@@ -695,7 +695,7 @@
   <a href="#api_2" class="md-nav__link">
     <span class="md-ellipsis">
       
-        有哪些 API 端點？
+        有哪些 API 端點可用？
       
     </span>
   </a>
@@ -745,7 +745,7 @@
   <a href="#_7" class="md-nav__link">
     <span class="md-ellipsis">
       
-        節點故障處理？
+        如果節點當機會發生什麼？
       
     </span>
   </a>
@@ -761,19 +761,19 @@
   <a href="#_8" class="md-nav__link">
     <span class="md-ellipsis">
       
-        疑難排解
+        故障排除
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="疑難排解">
+    <nav class="md-nav" aria-label="故障排除">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
   <a href="#_9" class="md-nav__link">
     <span class="md-ellipsis">
       
-        日誌位置
+        日誌在哪裡？
       
     </span>
   </a>
@@ -795,7 +795,7 @@
   <a href="#_11" class="md-nav__link">
     <span class="md-ellipsis">
       
-        串流回應失效
+        串流回應無法運作
       
     </span>
   </a>
@@ -811,19 +811,19 @@
   <a href="#_12" class="md-nav__link">
     <span class="md-ellipsis">
       
-        設定
+        配置
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="設定">
+    <nav class="md-nav" aria-label="配置">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
   <a href="#_13" class="md-nav__link">
     <span class="md-ellipsis">
       
-        可否變更健康檢查間隔？
+        我可以變更健康檢查間隔嗎？
       
     </span>
   </a>
@@ -1338,7 +1338,7 @@
   <a href="#_3" class="md-nav__link">
     <span class="md-ellipsis">
       
-        它解決什麼問題？
+        它解決了什麼問題？
       
     </span>
   </a>
@@ -1377,7 +1377,7 @@
   <a href="#api_2" class="md-nav__link">
     <span class="md-ellipsis">
       
-        有哪些 API 端點？
+        有哪些 API 端點可用？
       
     </span>
   </a>
@@ -1427,7 +1427,7 @@
   <a href="#_7" class="md-nav__link">
     <span class="md-ellipsis">
       
-        節點故障處理？
+        如果節點當機會發生什麼？
       
     </span>
   </a>
@@ -1443,19 +1443,19 @@
   <a href="#_8" class="md-nav__link">
     <span class="md-ellipsis">
       
-        疑難排解
+        故障排除
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="疑難排解">
+    <nav class="md-nav" aria-label="故障排除">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
   <a href="#_9" class="md-nav__link">
     <span class="md-ellipsis">
       
-        日誌位置
+        日誌在哪裡？
       
     </span>
   </a>
@@ -1477,7 +1477,7 @@
   <a href="#_11" class="md-nav__link">
     <span class="md-ellipsis">
       
-        串流回應失效
+        串流回應無法運作
       
     </span>
   </a>
@@ -1493,19 +1493,19 @@
   <a href="#_12" class="md-nav__link">
     <span class="md-ellipsis">
       
-        設定
+        配置
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="設定">
+    <nav class="md-nav" aria-label="配置">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
   <a href="#_13" class="md-nav__link">
     <span class="md-ellipsis">
       
-        可否變更健康檢查間隔？
+        我可以變更健康檢查間隔嗎？
       
     </span>
   </a>
@@ -1548,30 +1548,31 @@
 <h1 id="_1">常見問題</h1>
 <h2 id="_2">一般問題</h2>
 <h3 id="aivonx-proxy">什麼是 Aivonx Proxy？</h3>
-<p>Aivonx Proxy 是一個反向代理與管理平台，用於多個 Ollama 模型服務節點，提供智慧路由、負載平衡與高可用性功能，並透過 REST API 與網頁管理介面操作。</p>
-<h3 id="_3">它解決什麼問題？</h3>
-<p>它解決了管理多個 Ollama 實例的挑戰，例如：
+<p>Aivonx Proxy 是一個用於多個 Ollama 模型服務節點的反向代理和管理平台。它透過 REST API 和網頁式管理介面提供智慧路由、負載平衡和高可用性功能。</p>
+<h3 id="_3">它解決了什麼問題？</h3>
+<p>它透過以下方式解決管理多個 Ollama 實例的挑戰：
 - 提供統一的 API 端點
 - 自動將請求路由到健康的節點
-- 根據節點可用性與效能進行負載平衡
-- 支援依模型可用性進行路由</p>
+- 基於節點可用性和效能進行負載平衡
+- 支援模型感知路由（請求僅傳送到具有所需模型的節點）</p>
 <h2 id="api">API 文件</h2>
 <h3 id="api_1">如何檢視 API 文件？</h3>
-<p>啟動應用後可存取互動式 API 文件：
+<p>啟動應用程式後，在以下位置存取互動式 API 文件：
 - <strong>Swagger UI</strong>：<code>/swagger</code>
 - <strong>ReDoc</strong>：<code>/redoc</code></p>
-<h3 id="api_2">有哪些 API 端點？</h3>
-<p>主要端點包括：
-- <code>/api/proxy/nodes</code> - 節點 CRUD
-- <code>/api/proxy/state</code> - 檢視代理狀態
-- <code>/api/proxy/active-requests</code> - 監控每節點的活動請求數
-- <code>/api/proxy/pull</code> - 拉取模型到節點
-- <code>/api/generate</code> - 文字生成
-- <code>/api/chat</code> - 聊天生成
+<p>這些由 drf-spectacular 自動生成，並提供互動式請求測試。</p>
+<h3 id="api_2">有哪些 API 端點可用？</h3>
+<p>關鍵端點包括：
+- <code>/api/proxy/nodes</code> - 節點的 CRUD 操作
+- <code>/api/proxy/state</code> - 檢視代理管理員狀態
+- <code>/api/proxy/active-requests</code> - 監控每個節點的活躍請求
+- <code>/api/proxy/pull</code> - 將模型拉取到節點
+- <code>/api/generate</code> - 生成補全
+- <code>/api/chat</code> - 聊天補全
 - <code>/api/tags</code> - 列出可用模型</p>
 <h2 id="_4">節點管理</h2>
 <h3 id="_5">如何新增節點？</h3>
-<p><strong>透過 API：</strong></p>
+<p><strong>透過 API：</strong>
 <div class="highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://localhost:8000/api/proxy/nodes<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Authorization: Bearer YOUR_TOKEN&quot;</span><span class="w"> </span><span class="se">\</span>
@@ -1580,45 +1581,45 @@
 </span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="s1">    &quot;address&quot;: &quot;192.168.1.100&quot;,</span>
 </span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="s1">    &quot;port&quot;: 11434</span>
 </span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="s1">  }&#39;</span>
-</span></code></pre></div>
-<p><strong>透過 Web UI：</strong>
+</span></code></pre></div></p>
+<p><strong>透過網頁 UI：</strong>
 1. 登入管理介面
-2. 前往 Nodes 頁面
-3. 點選「Add Node」並填入資訊</p>
+2. 導航到節點區段
+3. 點擊「新增節點」並填入詳細資訊</p>
 <p>系統會自動對新節點執行健康檢查。</p>
 <h3 id="_6">節點選擇如何運作？</h3>
-<p>代理使用可設定的策略：
-- <strong>Least Active（預設）</strong>：選擇活動請求最少的節點
-- <strong>Lowest Latency</strong>：選擇延遲最低的節點</p>
-<p>可透過 <code>/api/proxy/config</code> 變更策略。</p>
-<h3 id="_7">節點故障處理？</h3>
-<p>健康檢查排程（預設每分鐘）會自動：
-- 偵測異常節點
-- 將其移到 standby 池
-- 停止將新請求路由到該節點
-- 節點恢復時自動重新加入</p>
-<h2 id="_8">疑難排解</h2>
-<h3 id="_9">日誌位置</h3>
-<ul>
-<li><code>logs/django.json</code> - 一般 Django 日誌</li>
-<li><code>logs/proxy.json</code> - 代理相關日誌</li>
-<li><code>logs/django_error.log</code> - 錯誤日誌</li>
-</ul>
+<p>代理使用可配置的策略：
+- <strong>最少活躍</strong>（預設）：路由到活躍請求最少的節點
+- <strong>最低延遲</strong>：路由到回應時間最好的節點</p>
+<p>您可以透過 <code>/api/proxy/config</code> 端點變更策略。</p>
+<h3 id="_7">如果節點當機會發生什麼？</h3>
+<p>健康檢查排程器（預設每分鐘執行一次）會自動：
+- 偵測不健康的節點
+- 將它們移至待命池
+- 停止將新請求路由到它們
+- 當它們恢復時重新新增</p>
+<h2 id="_8">故障排除</h2>
+<h3 id="_9">日誌在哪裡？</h3>
+<p>日誌儲存在：
+- <code>logs/django.json</code> - 一般 Django 日誌
+- <code>logs/proxy.json</code> - 代理特定日誌
+- <code>logs/django_error.log</code> - 錯誤日誌</p>
 <h3 id="_10">如何檢查節點是否健康？</h3>
-<p>使用狀態端點：</p>
+<p>使用狀態端點：
 <div class="highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>curl<span class="w"> </span>http://localhost:8000/api/proxy/state
-</span></code></pre></div>
-<p>會回傳 active/standby 池、延遲與活動請求數等資訊。</p>
-<h3 id="_11">串流回應失效</h3>
-<p>請確認使用 ASGI 伺服器（uvicorn）而非同步的 WSGI，因為串流需要非同步支援。</p>
-<h2 id="_12">設定</h2>
-<h3 id="_13">可否變更健康檢查間隔？</h3>
-<p>是，修改 APScheduler 設定或在 proxy app 中調整排程即可。</p>
+</span></code></pre></div></p>
+<p>這會返回活躍和待命池、延遲以及活躍請求計數。</p>
+<h3 id="_11">串流回應無法運作</h3>
+<p>確保您使用 ASGI 伺服器（uvicorn）而非 WSGI（gunicorn 與同步工作者）。串流需要非同步支援。</p>
+<h2 id="_12">配置</h2>
+<h3 id="_13">我可以變更健康檢查間隔嗎？</h3>
+<p>是的，修改 Django 設定中的 APScheduler 配置，或直接在代理應用配置中調整排程器。</p>
 <h3 id="api_3">如何保護 API？</h3>
-<p>API 支援：
-- JWT（djangorestframework-simplejwt）
-- Session 與 Token 驗證</p>
-<p>生產環境請設定正確的 CORS 與 CSRF 受信來源。</p>
+<p>API 使用：
+- JWT 認證（透過 djangorestframework-simplejwt）
+- 會話認證
+- Token 認證</p>
+<p>確保在生產中設定適當的 CORS 和 CSRF 受信任來源。</p>
 
 
 

@@ -757,12 +757,12 @@
   <a href="#_2" class="md-nav__link">
     <span class="md-ellipsis">
       
-        核心端點範例
+        核心端點
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="核心端點範例">
+    <nav class="md-nav" aria-label="核心端點">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -798,6 +798,39 @@
     <span class="md-ellipsis">
       
         Proxy 狀態
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#active-requests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Active Requests
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pull-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pull Model
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#proxy-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Proxy Configuration
       
     </span>
   </a>
@@ -1226,12 +1259,12 @@
   <a href="#_2" class="md-nav__link">
     <span class="md-ellipsis">
       
-        核心端點範例
+        核心端點
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="核心端點範例">
+    <nav class="md-nav" aria-label="核心端點">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1267,6 +1300,39 @@
     <span class="md-ellipsis">
       
         Proxy 狀態
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#active-requests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Active Requests
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pull-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pull Model
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#proxy-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Proxy Configuration
       
     </span>
   </a>
@@ -1346,33 +1412,69 @@
 
 
 <h1 id="api">API 文件</h1>
-<p>Aivonx Proxy 的完整 API 參考，所有端點使用 OpenAPI 3.0 規範記錄。</p>
+<p>Aivonx Proxy 的完整 API 參考。所有端點使用 OpenAPI 3.0 規範記錄。</p>
 <h2 id="_1">互動式文件</h2>
 <p>啟動應用後可存取互動式 API 文件：</p>
 <ul>
-<li><strong>Swagger UI</strong>：http://localhost:8000/swagger</li>
-<li><strong>ReDoc</strong>：http://localhost:8000/redoc</li>
-<li><strong>OpenAPI Schema</strong>：http://localhost:8000/api/schema</li>
+<li><strong>Swagger UI</strong>: http://localhost:8000/swagger</li>
+<li><strong>ReDoc</strong>: http://localhost:8000/redoc</li>
+<li><strong>OpenAPI Schema</strong>: http://localhost:8000/api/schema</li>
 </ul>
-<h2 id="_2">核心端點範例</h2>
+<h2 id="_2">核心端點</h2>
 <h3 id="_3">健康檢查</h3>
-<p><strong>Endpoint</strong>：<code>GET /api/health</code></p>
-<p><strong>描述</strong>：應用程式的全域健康檢查</p>
-<p><strong>回應範例</strong>：</p>
+<p><strong>Endpoint</strong>: <code>GET /api/health</code></p>
+<p><strong>描述</strong>: 全域健康檢查</p>
+<p><strong>回應</strong>:
 <div class="highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="p">{</span>
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;healthy&quot;</span>
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="p">}</span>
-</span></code></pre></div>
+</span></code></pre></div></p>
 <h2 id="proxy-api">Proxy 管理 API</h2>
-<p>所有 proxy 管理端點位於 <code>/api/proxy/</code>，多數需驗證。</p>
+<p>所有 proxy 管理端點位於 <code>/api/proxy/</code>。多數需驗證。</p>
 <h3 id="proxy">Proxy 狀態</h3>
-<p><strong>Endpoint</strong>：<code>GET /api/proxy/state</code></p>
-<p><strong>認證</strong>：AllowAny（不需驗證）</p>
-<p><strong>描述</strong>：檢視目前代理管理器狀態，包括 active/standby 池、節點對應、延遲與活動請求數。</p>
-<p>回應會包含節點列表、延遲與模型清單等資訊（詳見英文原檔）。</p>
+<p><strong>Endpoint</strong>: <code>GET /api/proxy/state</code></p>
+<p><strong>認證</strong>: Not required (AllowAny)</p>
+<p><strong>描述</strong>: 檢視目前代理管理器狀態，包括 active/standby 池、節點對應、延遲與活動請求數。</p>
+<p><strong>回應</strong>:
+<div class="highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="p">{</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="nt">&quot;active&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;http://node1:11434&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;http://node2:11434&quot;</span><span class="p">],</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span><span class="nt">&quot;standby&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[],</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">  </span><span class="nt">&quot;node_id_map&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">    </span><span class="nt">&quot;1&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;http://node1:11434&quot;</span><span class="p">,</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">    </span><span class="nt">&quot;2&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;http://node2:11434&quot;</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">  </span><span class="p">},</span>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">  </span><span class="nt">&quot;latencies&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">    </span><span class="nt">&quot;http://node1:11434&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.123</span><span class="p">,</span>
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">    </span><span class="nt">&quot;http://node2:11434&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.145</span>
+</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="w">  </span><span class="p">},</span>
+</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="w">  </span><span class="nt">&quot;active_counts&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="w">    </span><span class="nt">&quot;http://node1:11434&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span>
+</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="w">    </span><span class="nt">&quot;http://node2:11434&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span>
+</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="w">  </span><span class="p">},</span>
+</span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="w">  </span><span class="nt">&quot;models&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-1-17"><a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="w">    </span><span class="nt">&quot;http://node1:11434&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;llama2&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;codellama&quot;</span><span class="p">],</span>
+</span><span id="__span-1-18"><a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a><span class="w">    </span><span class="nt">&quot;http://node2:11434&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;llama2&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;mistral&quot;</span><span class="p">]</span>
+</span><span id="__span-1-19"><a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="w">  </span><span class="p">}</span>
+</span><span id="__span-1-20"><a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a><span class="p">}</span>
+</span></code></pre></div></p>
+<h3 id="active-requests">Active Requests</h3>
+<p><strong>Endpoint</strong>: <code>GET /api/proxy/active-requests</code></p>
+<p><strong>Query Parameters</strong>:
+- <code>node_id</code> (optional): Filter by specific node ID</p>
+<p><strong>認證</strong>: Not required (AllowAny)</p>
+<p><strong>描述</strong>: 取得所有節點或特定節點的活動請求計數。</p>
+<h3 id="pull-model">Pull Model</h3>
+<p><strong>Endpoint</strong>: <code>POST /api/proxy/pull</code></p>
+<p><strong>認證</strong>: Not required (AllowAny)</p>
+<p><strong>描述</strong>: 將模型拉取至一個或所有節點。</p>
+<h3 id="proxy-configuration">Proxy Configuration</h3>
+<p><strong>Endpoint</strong>: <code>GET/PUT/PATCH /api/proxy/config</code></p>
+<p><strong>認證</strong>: Required (IsAuthenticated)</p>
+<p><strong>描述</strong>: 取得或更新全域 proxy 設定（選擇策略）。</p>
 <h2 id="api_1">節點管理 API</h2>
 <h3 id="_4">列表/建立/更新/刪除 節點</h3>
-<p>Endpoint：<code>GET/POST/PUT/PATCH/DELETE /api/proxy/nodes</code>（由 <code>NodeViewSet</code> 管理）</p>
+<p><strong>Endpoints</strong>: <code>GET/POST/PUT/PATCH/DELETE /api/proxy/nodes</code></p>
+<p>由 <code>NodeViewSet</code> 管理。請參閱 <code>src/proxy/viewsets.py</code></p>
 <h2 id="proxy-ollama">Proxy 端點（Ollama 相容）</h2>
 <ul>
 <li><code>POST /api/generate</code> - 產生文本</li>
@@ -1385,8 +1487,8 @@
 <p>實作位置：<code>src/proxy/views_proxy.py</code></p>
 <h2 id="_5">模型與序列化</h2>
 <p>詳細欄位請參考：
-- <code>src/proxy/models.py</code>
-- <code>src/proxy/serializers.py</code></p>
+- <strong>Models</strong>: <code>src/proxy/models.py</code>
+- <strong>Serializers</strong>: <code>src/proxy/serializers.py</code></p>
 
 
 

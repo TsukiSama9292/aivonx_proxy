@@ -1199,33 +1199,36 @@
 
 
 
-<h1 id="_1">環境需求</h1>
+<h1 id="_1">需求</h1>
 <h2 id="_2">系統需求</h2>
 <ul>
 <li><strong>Python</strong>：&gt;=3.12, &lt;3.13</li>
 <li><strong>作業系統</strong>：Linux、macOS 或 Windows（建議在生產環境使用 Linux）</li>
 </ul>
 <h2 id="_3">核心相依套件</h2>
-<p>專案相依紀錄於 <code>pyproject.toml</code>。關鍵套件包括：</p>
+<p>所有專案相依套件均指定在 <code>pyproject.toml</code> 中。關鍵套件包括：</p>
 <ul>
-<li><strong>Django</strong>：Web 框架</li>
-<li><strong>Django REST Framework</strong>：API 框架</li>
-<li><strong>drf-spectacular</strong>：OpenAPI 3 文件產生</li>
-<li><strong>uvicorn / gunicorn</strong>：ASGI/WSGI 伺服器</li>
-<li><strong>Redis</strong>：快取與 session 儲存</li>
+<li><strong>Django</strong>：&gt;=5.2.8 - Web 框架</li>
+<li><strong>Django REST Framework</strong>：帶認證的 API 框架</li>
+<li><strong>drf-spectacular</strong>：OpenAPI 3 架構生成</li>
+<li><strong>uvicorn / gunicorn</strong>：ASGI/WSGI 伺服器選項</li>
+<li><strong>Redis</strong>：&gt;=7.1.0 - 快取和會話儲存</li>
 <li><strong>django-redis</strong>：Redis 快取後端</li>
-<li><strong>PostgreSQL</strong>（生產用，使用 <code>psycopg2-binary</code>）</li>
-<li><strong>httpx</strong>：非同步 HTTP 客戶端</li>
-<li><strong>APScheduler</strong>：背景工作排程</li>
+<li><strong>PostgreSQL</strong>：生產資料庫（psycopg2-binary）</li>
+<li><strong>httpx</strong>：現代非同步 HTTP 客戶端</li>
+<li><strong>APScheduler</strong>：背景任務排程</li>
 </ul>
 <h2 id="_4">開發工具</h2>
-<p>建議開發工具：
-- <code>ipykernel</code>、<code>jupyterlab</code>、<code>pytest</code>、<code>mkdocs</code> 與 <code>mkdocs-material</code></p>
+<p>建議用於開發：
+- <code>ipykernel</code>：Jupyter 核心支援
+- <code>jupyterlab</code>：互動式開發環境
+- <code>pytest</code>：測試框架
+- <code>mkdocs</code> 和 <code>mkdocs-material</code>：文件生成</p>
 <h2 id="_5">安裝</h2>
-<p>建議使用 <code>uv</code> 管理器（專案提供）：</p>
+<p>使用 <code>uv</code> 安裝（推薦）：</p>
 <div class="highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>uv<span class="w"> </span>sync
 </span></code></pre></div>
-<p>或使用 pip 安裝開發依賴：</p>
+<p>或使用 pip：</p>
 <div class="highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.<span class="o">[</span>dev<span class="o">]</span>
 </span></code></pre></div>
 

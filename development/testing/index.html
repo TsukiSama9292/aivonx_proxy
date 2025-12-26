@@ -1073,80 +1073,8 @@
   
 </li>
         
-          <li class="md-nav__item">
-  <a href="#pytest-alternative" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        pytest (Alternative)
-      
-    </span>
-  </a>
-  
-</li>
-        
       </ul>
     </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#test-configuration" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Test Configuration
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Test Configuration">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#test-settings" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Test Settings
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#test-structure" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Test Structure
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#best-practices" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Best Practices
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#coverage" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Coverage
-      
-    </span>
-  </a>
   
 </li>
       
@@ -1215,80 +1143,8 @@
   
 </li>
         
-          <li class="md-nav__item">
-  <a href="#pytest-alternative" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        pytest (Alternative)
-      
-    </span>
-  </a>
-  
-</li>
-        
       </ul>
     </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#test-configuration" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Test Configuration
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Test Configuration">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#test-settings" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Test Settings
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#test-structure" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Test Structure
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#best-practices" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Best Practices
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#coverage" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Coverage
-      
-    </span>
-  </a>
   
 </li>
       
@@ -1315,47 +1171,7 @@
 <p>The project includes unit tests with pytest configuration located in <code>src/*/tests/</code>.</p>
 <h3 id="django-test-runner">Django Test Runner</h3>
 <div class="highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># Run all tests</span>
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>python<span class="w"> </span>src/manage.py<span class="w"> </span><span class="nb">test</span>
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="c1"># Run specific app</span>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>python<span class="w"> </span>src/manage.py<span class="w"> </span><span class="nb">test</span><span class="w"> </span>proxy
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="c1"># Run with parallel execution</span>
-</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>python<span class="w"> </span>src/manage.py<span class="w"> </span><span class="nb">test</span><span class="w"> </span>--parallel
-</span></code></pre></div>
-<h3 id="pytest-alternative">pytest (Alternative)</h3>
-<div class="highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Run all tests</span>
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>pytest
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># Run with coverage</span>
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>pytest<span class="w"> </span>--cov<span class="o">=</span>src<span class="w"> </span>--cov-report<span class="o">=</span>html
-</span></code></pre></div>
-<h2 id="test-configuration">Test Configuration</h2>
-<p>Tests use settings from <code>src/aivonx/settings.py</code>. For CI environments, use an isolated test database and Redis instance.</p>
-<h3 id="test-settings">Test Settings</h3>
-<p>During testing, logging is configured to show only ERROR level and above to speed up test execution.</p>
-<h2 id="test-structure">Test Structure</h2>
-<p>Tests are organized by application:</p>
-<div class="highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>src/
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>├── proxy/tests/          # Proxy tests
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>│   ├── conftest.py      # pytest fixtures
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>│   └── test_*.py        # Test modules
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>├── account/tests.py      # Account tests
-</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>└── logviewer/tests.py    # Logviewer tests
-</span></code></pre></div>
-<h2 id="best-practices">Best Practices</h2>
-<ul>
-<li>Write tests for new features</li>
-<li>Ensure existing tests pass before committing</li>
-<li>Use fixtures for common test data</li>
-<li>Mock external services</li>
-<li>Test edge cases and error conditions</li>
-</ul>
-<h2 id="coverage">Coverage</h2>
-<div class="highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># Generate coverage report</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>coverage<span class="w"> </span>run<span class="w"> </span>--source<span class="o">=</span><span class="s1">&#39;src&#39;</span><span class="w"> </span>src/manage.py<span class="w"> </span><span class="nb">test</span>
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>coverage<span class="w"> </span>report
-</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>coverage<span class="w"> </span>html
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>python<span class="w"> </span>src/manage.py<span class="w"> </span><span class="nb">test</span><span class="w"> </span>proxy.tests<span class="w"> </span>account.tests<span class="w"> </span>logviewer.tests<span class="w"> </span>--verbosity<span class="w"> </span><span class="m">1</span><span class="w"> </span>--keepdb
 </span></code></pre></div>
 
 
