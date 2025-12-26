@@ -2,6 +2,24 @@
 
 輕量級的 Ollama 模型節點反向代理與高可用（HA）管理服務，提供統一的 API 路由、節點管理、模型發現與串流代理能力。
 
+<p align="center">
+  <img
+    src="./asstes/images/AIVONX_PROXY.png"
+    alt="AIVONX Proxy"
+    width="200"
+    height="200"
+  />
+</p>
+
+<p align="center">
+  <a href="https://github.com/TsukiSama9292/aivonx_proxy/commits/main">
+    <img src="https://img.shields.io/github/last-commit/TsukiSama9292/aivonx_proxy" alt="Last Commit">
+  </a>
+  <a href="https://github.com/TsukiSama9292/aivonx_proxy/actions/workflows/tests.yml">
+    <img src="https://github.com/TsukiSama9292/aivonx_proxy/actions/workflows/tests.yml/badge.svg" alt="CI Status">
+  </a>
+</p>
+
 **主要功能**
 - 節點管理：新增/移除/編輯 Ollama 節點，並維護活動/備援池。
 - Proxy API：在 `/api/proxy` 之下路由請求到可提供該模型的節點，支援串流回應。

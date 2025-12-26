@@ -2,6 +2,24 @@
 
 Lightweight reverse proxy and HA manager for Ollama model-serving nodes. The project provides a unified API gateway, node management, model discovery, and streaming proxy support.
 
+<p align="center">
+  <img
+    src="./asstes/images/AIVONX_PROXY.png"
+    alt="AIVONX Proxy"
+    width="200"
+    height="200"
+  />
+</p>
+
+<p align="center">
+  <a href="https://github.com/TsukiSama9292/aivonx_proxy/commits/main">
+    <img src="https://img.shields.io/github/last-commit/TsukiSama9292/aivonx_proxy" alt="Last Commit">
+  </a>
+  <a href="https://github.com/TsukiSama9292/aivonx_proxy/actions/workflows/tests.yml">
+    <img src="https://github.com/TsukiSama9292/aivonx_proxy/actions/workflows/tests.yml/badge.svg" alt="CI Status">
+  </a>
+</p>
+
 **Key features**
 - Node management: create, update and remove Ollama nodes and manage active/standby pools.
 - Proxy API: route requests under `/api/proxy` to nodes that expose the requested model, with streaming support.
