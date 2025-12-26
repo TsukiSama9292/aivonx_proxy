@@ -38,8 +38,8 @@ jobs:
       - name: Build
         run: uv run --group web mkdocs build -f mkdocs.yml -d ./dist
 
-    #   - name: Copy CNAME file
-    #     run: echo '' > ./dist/CNAME
+      - name: Copy CNAME file
+        run: echo 'aivonx_proxy.tsukisama9292.github.io' > ./dist/CNAME
 
       - name: Deploy to gh-pages
         uses: peaceiris/actions-gh-pages@v4
