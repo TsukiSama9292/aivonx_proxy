@@ -30,7 +30,6 @@ plugins:
           name: English
           default: true
           build: true
-          link: /aivonx_proxy/
         - locale: zh
           name: 繁體中文
           default: false
