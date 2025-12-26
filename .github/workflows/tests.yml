@@ -31,25 +31,27 @@ jobs:
 
       - name: Build & start services
         run: |
-          docker compose build --quiet
-          docker compose up -d
+          docker compose -f docker-compose-test.yml build --quiet
+          docker compose -f docker-compose-test.yml up -d
       
       - name: Check Django container status
         run: |
-          STATUS=$(docker inspect -f '{{.State.Status}}' $(docker compose ps -q django))
+          STATUS=$(docker inspect -f '{{.State.Status}}' $(docker compose -f docker-compose-test.yml ps -q django))
           if [ "$STATUS" != "running" ]; then
             echo "::error::Django container is not running (status=$STATUS)"
-            docker compose logs django
+            docker compose -f docker-compose-test.yml logs django
             exit 1
           fi
       
       - name: export django static files
         run: |
-          docker compose exec -T django \
+          docker compose -f docker-compose-test.yml exec -T django \
             uv run python -X utf8 src/manage.py collectstatic --noinput
 
-          
       - name: Run Django tests in backend container
         run: |
-          docker compose exec -T django \
-            uv run python -X utf8 src/manage.py test proxy.tests --verbosity 1
+          # Run full test suite (all apps). Consider removing `--keepdb` in CI
+          # if you need a clean database per run.
+          # Run tests for each app explicitly to ensure discovery works
+          docker compose -f docker-compose-test.yml exec -T django \
+            uv run python -X utf8 src/manage.py test proxy.tests account.tests logviewer.tests --verbosity 1 --keepdb

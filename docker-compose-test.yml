@@ -80,7 +80,7 @@ services:
     entrypoint: >
       bash -c "
       uv run src/manage.py migrate &&
-      uv run main.py --workers 2
+      tail -f /dev/null
       "
 
 networks:

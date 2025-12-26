@@ -9,7 +9,10 @@ class AccountLoginAPITest(APITestCase):
 		User = get_user_model()
 		self.username = "root"
 		self.password = os.getenv("ROOT_PASSWORD", "changeme")
-		User.objects.create_user(username=self.username, password=self.password)
+		# Ensure idempotent user creation for persistent test DBs
+		user, created = User.objects.get_or_create(username=self.username)
+		user.set_password(self.password)
+		user.save()
 
 	def test_missing_credentials(self):
 		resp = self.client.post("/api/account/login", {}, format="json")
