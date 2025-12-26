@@ -758,11 +758,3 @@ If you discover a security vulnerability, please:
 2. Email the maintainers directly (see `../../README.md`)
 3. Include detailed steps to reproduce
 4. Allow reasonable time for a fix before public disclosure
-
-## Changelog
-
-- **2024-12-26**: Initial comprehensive security documentation
-- Added detailed environment variable descriptions
-- Added authentication and authorization sections
-- Added production security checklist
-- Added container security recommendations

@@ -64,8 +64,10 @@ coverage report
 
 ```bash
 git add .
-git commit -m "Add feature: description of changes"
+git commit -m "[Types] description of changes"
 ```
+
+Types: `[update]`, `[fix]`, `[tests]`, `[docs]`
 
 ## Submitting a Pull Request
 
@@ -117,14 +119,10 @@ git commit -m "Add feature: description of changes"
 Follow conventional commit format:
 
 ```
-type(scope): brief description
-
-Detailed explanation if needed
-
-Fixes #issue_number
+- Description 1
+- Description 2
+- Description 3
 ```
-
-Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
 
 ## What to Contribute
 

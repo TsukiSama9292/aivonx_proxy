@@ -11,7 +11,7 @@ docker-compose up -d
 ```
 
 包含服務：
-- Django 應用
+- Django 應用伺服器
 - PostgreSQL 資料庫
 - Redis 快取
 - Ollama 服務（可選）
@@ -44,32 +44,42 @@ gunicorn aivonx.asgi:application -k uvicorn.workers.UvicornWorker --bind 0.0.0.0
 gunicorn aivonx.wsgi:application --bind 0.0.0.0:8000 --workers 4
 ```
 
-## 環境變數（重點）
+## 環境變數
 
-必備或重要環境變數（詳細請參考 `src/aivonx/settings.py`）：
+關鍵環境變數（詳細請參考 `src/aivonx/settings.py`）：
 
 ### 生產需要
-- `DJANGO_SECRET_KEY`：必要
+
+- `DJANGO_SECRET_KEY`：**必要** - Django 的密碼學秘密
 - `DJANGO_DEBUG`：生產請設為 `false`
-- `DJANGO_ALLOWED_HOSTS`：允許的主機列表
+- `DJANGO_ALLOWED_HOSTS`：允許的主機名稱列表
 
-### 資料庫
-- `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_HOST`, `POSTGRES_PORT`
+### 資料庫配置
 
-### 快取
-- `REDIS_URL`（預設：`redis://redis:6379/1`）
+- `POSTGRES_DB`：資料庫名稱（預設：`app_db`）
+- `POSTGRES_USER`：資料庫使用者（預設：`user`）
+- `POSTGRES_PASSWORD`：資料庫密碼（預設：`password`）
+- `POSTGRES_HOST`：資料庫主機（預設：`postgres`）
+- `POSTGRES_PORT`：資料庫連接埠（預設：`5432`）
 
-### 安全
-- `DJANGO_CORS_ALLOWED_ORIGINS`, `DJANGO_CSRF_TRUSTED_ORIGINS`, `ROOT_PASSWORD`
+### 快取配置
+
+- `REDIS_URL`：Redis 連線 URL（預設：`redis://redis:6379/1`）
+
+### 安全配置
+
+- `DJANGO_CORS_ALLOWED_ORIGINS`：允許的 CORS 來源
+- `DJANGO_CSRF_TRUSTED_ORIGINS`：受信任的 CSRF 來源
+- `ROOT_PASSWORD`：預設 `root` 使用者的密碼
 
 ## 生產檢查清單
 
-- 設定強隨機 `DJANGO_SECRET_KEY`
-- 關閉 debug 模式 (`DJANGO_DEBUG=false`)
-- 設定正確的 `ALLOWED_HOSTS`
-- 使用託管的 PostgreSQL 與 Redis
-- 設定 SSL/TLS
-- 配置日誌與監控
-- 變更預設 `root` 密碼
-- 設定自動備份
-- 設定防火牆規則
+- [ ] 設定強隨機 `DJANGO_SECRET_KEY`
+- [ ] 關閉 debug 模式 (`DJANGO_DEBUG=false`)
+- [ ] 設定正確的 `ALLOWED_HOSTS`
+- [ ] 使用託管的 PostgreSQL 與 Redis
+- [ ] 設定 SSL/TLS 憑證
+- [ ] 配置日誌與監控
+- [ ] 變更預設 `root` 密碼
+- [ ] 設定自動備份
+- [ ] 設定防火牆規則

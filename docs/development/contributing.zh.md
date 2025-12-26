@@ -1,12 +1,12 @@
 # 貢獻指南
 
-歡迎為 Aivonx Proxy 做出貢獻！以下說明如何開始。
+我們歡迎對 Aivonx Proxy 的貢獻！以下是如何開始。
 
-## 快速開始
+## 開始使用
 
-1. **Fork 專案**
-   - 在 GitHub 上 fork 本專案
-   - 將 fork clone 到本機
+1. **Fork 儲存庫**
+   - 在 GitHub 上 Fork 專案
+   - 本地克隆您的 Fork
    ```bash
    git clone https://github.com/YOUR_USERNAME/aivonx_proxy.git
    cd aivonx_proxy
@@ -14,13 +14,13 @@
 
 2. **設定開發環境**
    ```bash
-   # 安裝相依
+   # 安裝依賴
    uv sync
    
-   # 執行 migrations
+   # 執行遷移
    uv run src/manage.py migrate
    
-   # 建立 superuser
+   # 建立超級使用者
    uv run src/manage.py createsuperuser
    ```
 
@@ -29,129 +29,138 @@
    git checkout -b feature/your-feature-name
    ```
 
-## 開發流程
+## 開發工作流程
 
 ### 執行測試
 
-提交前請確保測試皆通過：
+在提交更改之前，請確保所有測試通過：
 
 ```bash
-# 執行全部測試
+# 執行所有測試
 python src/manage.py test
 
-# 執行特定 app 測試
+# 執行特定應用程式測試
 python src/manage.py test proxy
 
-# 使用 coverage
+# 使用覆蓋率執行
 coverage run --source='.' src/manage.py test
 coverage report
 ```
 
-### 程式風格
+### 程式碼風格
 
-- 遵循既有風格與命名慣例
-- 使用具意義的變數與函式名稱
-- 新增函式/類別請加入 docstring
-- 保持函式單一責任與易維護
+- 遵循現有的程式碼風格和慣例
+- 使用有意義的變數和函數名稱
+- 為新函數和類別新增文件字串
+- 保持函數專注和模組化
 
-### 提交變更
+### 進行更改
 
-1. 在功能分支完成修改
-2. 適當新增或更新測試
-3. 更新文件（如有需要）
-4. 執行測試
-5. 使用清晰訊息 commit
+1. 在您的功能分支中進行更改
+2. 根據需要編寫或更新測試
+3. 如有必要，更新文件
+4. 執行測試以確保一切正常
+5. 使用清晰、描述性的訊息提交
 
 ```bash
 git add .
-git commit -m "Add feature: description of changes"
+git commit -m "[Types] description of changes"
 ```
 
-## 提交 Pull Request
+類型：`[update]`、`[fix]`、`[tests]`、`[docs]`
 
-1. **推送到你的 fork**
+## 提交拉取請求
+
+1. **推送至您的 Fork**
    ```bash
    git push origin feature/your-feature-name
    ```
 
-2. **建立 PR**
-   - 前往原始專案頁面
-   - 點選 "New Pull Request"
-   - 選取你的分支並填寫 PR 範本：
-     - 變更描述
-     - 動機與背景
-     - 相關 issue 編號
-     - 已做測試
+2. **建立拉取請求**
+   - 前往 GitHub 上的原始儲存庫
+   - 點擊 "New Pull Request"
+   - 選擇您的分支
+   - 使用以下內容填寫 PR 模板：
+     - 更改描述
+     - 動機和背景
+     - 相關問題編號
+     - 執行的測試
 
-3. **審查流程**
-   - 維護者會檢視 PR
-   - 回應修改意見並更新 PR
-   - 經批准後合併
+3. **PR 審核流程**
+   - 維護者將審核您的 PR
+   - 處理任何回饋或請求的更改
+   - 一旦批准，您的 PR 將被合併
 
 ## 指南
 
-### 程式品質
+### 程式碼品質
 
-- 撰寫清晰可讀程式碼
-- 遵循 Django 與 Python 最佳實務
-- 避免不必要複雜度
-- 保持 commits 原子性
+- 編寫乾淨、可讀的程式碼
+- 遵循 Django 和 Python 最佳實務
+- 避免不必要的複雜性
+- 保持提交原子化和專注
 
 ### 文件
 
 - 更新相關文件
-- 新增公開 API 的 docstring
-- 如有必要更新 CHANGELOG
+- 為公開 API 新增文件字串
+- 如適用，更新 CHANGELOG
+- 為新功能包含範例
 
 ### 測試
 
-- 為新功能新增測試
-- 確保既有測試通過
-- 盡量涵蓋邊緣案例
+- 為新功能編寫測試
+- 確保現有測試通過
+- 致力於良好的測試覆蓋率
+- 測試邊緣情況和錯誤條件
 
-### Commit 訊息
+### 提交訊息
 
-採用 conventional commit 格式：
+遵循慣例提交格式：
 
 ```
-type(scope): brief description
-
-Detailed explanation if needed
-
-Fixes #issue_number
+- 描述 1
+- 描述 2
+- 描述 3
 ```
 
-型別範例：`feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
+## 貢獻什麼
 
-## 可貢獻項目
-
-### 適合新手的 issue
+### 好的首次問題
 
 - 文件改進
-- 小型 bug 修正
-- 測試覆蓋率提升
-- 註解或程式碼清理
+- 錯誤修復
+- 測試覆蓋率改進
+- 程式碼註釋和澄清
 
-### 功能需求
+### 功能請求
 
-- 先開 issue 討論
-- 征求回饋後再實作
-- 確認與專案目標一致
+- 先開啟問題進行討論
+- 在實作前獲得回饋
+- 確保它符合專案目標
 
-### Bug 回報
+### 錯誤報告
 
-回報時請包含：
-- 問題描述
+報告錯誤時，請包含：
+- 問題的清晰描述
 - 重現步驟
 - 預期與實際行為
-- 執行環境（OS、Python 版本）
+- 環境詳細資訊（作業系統、Python 版本等）
 - 相關日誌或錯誤訊息
 
 ## 行為準則
 
-- 保持尊重與專業
-- 歡迎新手貢獻
+- 尊重和專業
+- 歡迎新手
 - 提供建設性回饋
-- 以合作為優先
+- 專注於合作
 
-謝謝你的貢獻！
+## 有問題嗎？
+
+如果您有問題：
+- 檢查現有文件
+- 搜尋已關閉的問題
+- 開啟新問題進行討論
+- 加入社群討論
+
+感謝您的貢獻！

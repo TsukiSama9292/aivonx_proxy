@@ -1,392 +1,130 @@
-﻿# 安全性指南（繁體中文）
+﻿# 安全性
 
-本文檔為 aivonx_proxy 提供完整的安全性建議與設定說明，涵蓋認證、授權、環境變數、CORS/CSRF、資料庫、密碼策略、容器與生產部署檢查表等項目。
+本文件提供 aivonx_proxy 應用程式的全面安全性指南和配置選項。它涵蓋認證、授權、環境配置以及生產部署的最佳實踐。
 
 ## 目錄
 
-- 安全總覽
-- 環境設定
-- 認證與授權
-- CORS 與 CSRF 保護
-- 資料庫安全
-- 密碼安全
-- 生產部署安全檢查表
-- 安全中介軟體
-- API 端點安全
-- 日誌與監控
-- 容器安全
-
-## 安全總覽
-
-aivonx_proxy 以多層防護設計來降低常見風險：
-
-- 認證：支援 JWT、Session 與 Token 多種方式
-- 授權：使用 DRF 權限類別管理存取控制
-- CORS：可設定跨域來源清單
-- CSRF：透過 Django 的 CSRF 機制保護狀態變更請求
-- 密碼驗證：採用 Django 的密碼驗證器強化密碼安全
-- 生產環境預設需明確設定敏感參數
-
-## 環境設定
-
-以下環境變數在生產環境中為必要或強烈建議設定：
-
-### `DJANGO_SECRET_KEY`
-
-關鍵：Django 的 secret key 用於加密簽章，務必保密。
-
-```bash
-DJANGO_SECRET_KEY="your-long-random-secret-key-here"
-```
-
-建議：
-- 在 `DJANGO_DEBUG=false` 時必須設定
-- 建議長度 50 字元以上且隨機不可預測
-- 切勿將其提交至版本控制系統
-- 定期輪換
-
-產生範例：
-
-```bash
-python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())'
-```
-
-### `DJANGO_DEBUG`
-
-控制除錯模式；生產環境務必關閉。
-
-```bash
-DJANGO_DEBUG=false
-```
-
-影響：
-- `true` 時會顯示詳細錯誤與堆疊資訊（不安全）
-- `false` 時顯示通用錯誤頁面以保護敏感資訊
-
-接受值：`true`, `false`, `1`, `0`, `yes`, `no`（不區分大小寫）
-
-### `DJANGO_ALLOWED_HOSTS`
-
-以逗號分隔的主機或網域清單，Django 只會回應清單內的 Host 標頭。
-
-```bash
-DJANGO_ALLOWED_HOSTS="yourdomain.com,www.yourdomain.com,api.yourdomain.com"
-```
-
-注意：在生產環境（`DJANGO_DEBUG=false`）必須設定；開發時使用 `*` 容易造成風險。
-
-### 可選的安全環境變數
-
-`ROOT_PASSWORD`：在初次遷移時建立的管理帳號預設密碼。
-
-```bash
-ROOT_PASSWORD="your-secure-password"
-```
-
-重要提示：預設值可能為 `changeme`（不安全），上線前務必更改。
-
-## 認證與授權
-
-### 認證方式
-
-應用程式支援三種主要認證方式（見 `src/aivonx/settings.py`）：
-
-1. JWT（使用 `djangorestframework-simplejwt`）
-   - 登入端點：`POST /api/account/login`
-   - 回傳 `access` 與 `refresh` token，使用 `Authorization: Bearer <token>` 呼叫 API
-
-2. Session（cookie-based）
-   - 適用於 Web UI 登入
-   - 搭配 CSRF 保護與伺服器端 session（可使用 Redis）
-
-3. Token（DRF Token Authentication）
-   - 使用 `Authorization: Token <token>` 的方式
-
-### 預設權限政策
-
-全域預設為必須驗證：
-
-```python
-"DEFAULT_PERMISSION_CLASSES": (
-    "rest_framework.permissions.IsAuthenticated",
-)
-```
-
-個別端點可用裝飾器覆寫，常見用法：
-
-- `@permission_classes([IsAuthenticated])`：需要驗證
-- `@permission_classes([AllowAny])`：公開（不需驗證）
-- `@login_required`：Session 登入保護（Web UI）
-
-注意：某些 proxy 端點（如 `/api/proxy/*`）預設使用 `AllowAny` 以利整合，但生產環境建議採取額外控管（例如 API 金鑰、反向代理限制或僅內網可存取）。
-
-## CORS 與 CSRF 保護
-
-### CORS
-
-使用 `DJANGO_CORS_ALLOWED_ORIGINS` 指定允許的跨域來源（逗號分隔）。
-
-```bash
-DJANGO_CORS_ALLOWED_ORIGINS="https://example.com,https://app.example.com"
-```
-
-設定會自動補上 `http://`（如未提供 scheme），並支援 `CORS_ALLOW_CREDENTIALS = True`（允許攜帶 cookie），但當啟用此選項時，務必把允許來源限制為可信網域。
-
-### CSRF
-
-使用 `DJANGO_CSRF_TRUSTED_ORIGINS` 指定受信任來源（需包含 scheme）：
-
-```bash
-DJANGO_CSRF_TRUSTED_ORIGINS="https://example.com,https://admin.example.com"
-```
-
-Django 已啟用 `CsrfViewMiddleware`，且 Web UI 的 POST 操作通常加上 `@csrf_protect` 裝飾器，要求 valid CSRF token。
-
-## 資料庫安全
-
-應用使用 PostgreSQL（環境變數設定）：
-
-```bash
-POSTGRES_USER="user"
-POSTGRES_PASSWORD="secure-password-here"
-POSTGRES_DB="app_db"
-POSTGRES_HOST="postgres"
-POSTGRES_PORT="5432"
-```
-
-建議：
-
-1. 使用強密碼（建議 16 字元以上，混合大小寫、數字與符號）
-2. 限制網路存取（透過 `pg_hba.conf` 與防火牆）
-3. 在生產環境開啟 SSL/TLS
-4. 定期備份並驗證備份可還原
-5. 原則上採最小權限帳號
-
-Redis 用於快取與 session：
-
-```bash
-REDIS_URL="redis://redis:6379/1"
-```
-
-建議：啟用驗證（`requirepass`）、限制綁定位址、分離資料庫索引並停用危險指令
-
-## 密碼安全
-
-Django 已啟用密碼驗證器（UserAttributeSimilarity、MinimumLength、CommonPassword、NumericPassword），並以 PBKDF2-HMAC-SHA256 儲存密碼，會自動在登入時更新較新的雜湊參數。
-
-遷移檔 `src/account/migrations/0003_create_root.py` 會使用 `make_password()` 為 root 帳號雜湊密碼，請勿使用預設弱密碼上線。
-
-## 生產部署安全檢查表
-
-上線前必做：
-
-- [ ] 設定 `DJANGO_DEBUG=false`
-- [ ] 設定安全的 `DJANGO_SECRET_KEY`（50+ 字元）
-- [ ] 設定 `DJANGO_ALLOWED_HOSTS` 為實際網域
-- [ ] 變更 `ROOT_PASSWORD`（勿使用 `changeme`）
-- [ ] 強制 HTTPS（TLS）
-- [ ] 設定 `DJANGO_CSRF_TRUSTED_ORIGINS`（包含 `https://`）
-- [ ] 設定安全的 `POSTGRES_PASSWORD`
-- [ ] 檢查並限制 `DJANGO_CORS_ALLOWED_ORIGINS`
-
-建議項目：
-
-- [ ] 啟用資料庫 SSL 連線
-- [ ] 為 Redis 設定驗證
-- [ ] 建立日誌監控與告警
-- [ ] 在認證端點加入速率限制
-- [ ] 使用專屬環境檔（勿提交 .env 至 git）
-- [ ] 設定自動化備份與還原程序
-- [ ] 檢討所有 `AllowAny` 的端點並視情況限制存取
-
-### 建議加入的安全標頭
-
-在生產（HTTPS）環境建議加入：
-
-```python
-SECURE_SSL_REDIRECT = True
-SECURE_HSTS_SECONDS = 31536000
-SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-SECURE_HSTS_PRELOAD = True
-SECURE_CONTENT_TYPE_NOSNIFF = True
-SECURE_BROWSER_XSS_FILTER = True
-X_FRAME_OPTIONS = 'DENY'
-SESSION_COOKIE_SECURE = True
-CSRF_COOKIE_SECURE = True
-SESSION_COOKIE_HTTPONLY = True
-CSRF_COOKIE_HTTPONLY = True
-```
-
-## 安全中介軟體（Middleware）
-
-設定中包含下列中介軟體（見 `src/aivonx/settings.py`）：
-
-`SecurityMiddleware`、`SessionMiddleware`、`CommonMiddleware`、`CsrfViewMiddleware`、`AuthenticationMiddleware`、`MessageMiddleware`、`XFrameOptionsMiddleware`、`corsheaders.middleware.CorsMiddleware`、`whitenoise.middleware.WhiteNoiseMiddleware`。
-
-其用途包括：安全標頭、Session 管理、CSRF 驗證、CORS 檢查、點擊劫持防護與靜態檔案服務。
-
-## API 端點安全
-
-公開端點（`AllowAny`）範例：`/api/account/login`、`/api/proxy/state`、`/api/proxy/generate`、`/api/proxy/chat`、`/api/tags` 等。這些端點有其設計用途，但在需受限的情境下應額外保護（例如反向代理驗證、IP 白名單或在程式中改為 `IsAuthenticated`）。
-
-受保護端點：設定檔與節點管理 API（預設需驗證）、Web UI（`@login_required`）以及 Django admin（只限 staff）。
-
-## 日誌與監控
-
-日誌配置支援 JSON 與 verbose 格式，包含 `logs/django.json`、`logs/django_error.log` 與 `logs/proxy.json`。建議集中化日誌、監控失敗登入、錯誤率、Proxy 使用情形與資料庫行為。
-
-## 容器安全
-
-Docker Compose 範例設定包含 `privileged: false`、`ipc: private` 與健康檢查。建議：
-
-- 以非 root 使用者執行容器
-- 使用唯讀檔系統與 tmpfs（視情況）
-- 設定資源限制
-- 網路分段（前端/後端）並將資料庫放在內部網路
-- 使用 secrets 管理敏感資料
-
-也建議定期掃描映像檔漏洞（如 Trivy）與更新基底映像。
-
-## 其他資源
-
-- Django 官方安全與部署檢查表
-- OWASP Top 10 與 REST 安全檢核列表
-- 建議使用 Bandit、Safety、Trivy 等工具做安全檢測
-
-## 事件通報
-
-發現安全漏洞請勿公開發佈 issue，請直接聯絡維護者並提供重現步驟，保留合理的修補與通報時間。
-
-## 版本記錄
-
-- 2024-12-26：新增完整安全性文件（繁體中文翻譯）
-# Security
-
-This document provides comprehensive security guidelines and configuration options for the aivonx_proxy application. It covers authentication, authorization, environment configuration, and best practices for production deployments.
-
-## Table of Contents
-
-- `Security Overview`
-- `Environment Configuration`
-- `Authentication & Authorization`
-- `CORS & CSRF Protection`
-- `Database Security`
-- `Password Security`
-- `Production Security Checklist`
-- `Security Middleware`
-- `API Endpoint Security`
-- `Logging & Monitoring`
-- `Container Security`
-
-## Security Overview
-
-The aivonx_proxy application implements multiple layers of security to protect against common vulnerabilities:
-
-- **Authentication**: Multi-method authentication including JWT, Session, and Token authentication
-- **Authorization**: Role-based access control with permission classes
-- **CORS Protection**: Configurable Cross-Origin Resource Sharing policies
-- **CSRF Protection**: Cross-Site Request Forgery protection for state-changing operations
-- **Password Validation**: Django's comprehensive password validation framework
-- **Secure Defaults**: Production-safe defaults with explicit environment configuration
-
-## Environment Configuration
-
-### Required Environment Variables (Production)
-
-The following environment variables **MUST** be configured in production environments:
+- `安全性概述`
+- `環境配置`
+- `認證與授權`
+- `CORS 與 CSRF 保護`
+- `資料庫安全性`
+- `密碼安全性`
+- `生產安全性檢查清單`
+- `安全性中介軟體`
+- `API 端點安全性`
+- `日誌與監控`
+- `容器安全性`
+
+## 安全性概述
+
+aivonx_proxy 應用程式實作多層安全性來保護常見漏洞：
+
+- **認證**：多方法認證，包括 JWT、Session 和 Token 認證
+- **授權**：基於角色的存取控制與權限類別
+- **CORS 保護**：可配置的跨來源資源共享政策
+- **CSRF 保護**：針對狀態變更操作的跨站請求偽造保護
+- **密碼驗證**：Django 的全面密碼驗證框架
+- **安全預設**：生產安全的預設值與明確的環境配置
+
+## 環境配置
+
+### 必需的環境變數（生產環境）
+
+以下環境變數**必須**在生產環境中配置：
 
 #### `DJANGO_SECRET_KEY`
 
-**Critical**: The Django secret key is used for cryptographic signing and MUST be kept secret.
+**關鍵**：Django 秘密金鑰用於密碼學簽署，**必須**保密。
 
 ```bash
 DJANGO_SECRET_KEY="your-long-random-secret-key-here"
 ```
 
-**Requirements**:
-- Must be set when `DJANGO_DEBUG=false`
-- Should be at least 50 characters long
-- Must be random and unpredictable
-- Never commit to version control
-- Rotate periodically in production
+**要求**：
+- 當 `DJANGO_DEBUG=false` 時必須設定
+- 應至少 50 個字元長
+- 必須隨機且不可預測
+- 永遠不要提交到版本控制
+- 在生產中定期輪換
 
-**Generation Example**:
+**生成範例**：
 ```bash
 python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())'
 ```
 
 #### `DJANGO_DEBUG`
 
-Controls Django's debug mode. **MUST be disabled in production**.
+控制 Django 的除錯模式。**必須**在生產中停用。
 
 ```bash
 DJANGO_DEBUG=false
 ```
 
-**Security Impact**:
-- When `true`: Exposes detailed error messages, settings, and stack traces
-- When `false`: Shows generic error pages, hides sensitive information
-- **Always set to `false` in production**
+**安全性影響**：
+- 當 `true`：暴露詳細的錯誤訊息、設定和堆疊追蹤
+- 當 `false`：顯示通用錯誤頁面，隱藏敏感資訊
+- **總是在生產中設定為 `false`**
 
-**Accepted Values**: `true`, `false`, `1`, `0`, `yes`, `no` (case-insensitive)
+**接受值**：`true`、`false`、`1`、`0`、`yes`、`no`（不區分大小寫）
 
 #### `DJANGO_ALLOWED_HOSTS`
 
-Comma-separated list of host/domain names that Django will serve.
+Django 將服務的以逗號分隔的主機/域名列表。
 
 ```bash
 DJANGO_ALLOWED_HOSTS="yourdomain.com,www.yourdomain.com,api.yourdomain.com"
 ```
 
-**Requirements**:
-- Required when `DJANGO_DEBUG=false`
-- Must include all domains that will access your application
-- Prevents HTTP Host header attacks
-- Use `*` only for development (insecure for production)
+**要求**：
+- 當 `DJANGO_DEBUG=false` 時必需
+- 必須包含所有將存取您應用程式的域名
+- 防止 HTTP Host 標頭攻擊
+- 僅在開發中使用 `*`（生產中不安全）
 
-**Examples**:
+**範例**：
 ```bash
-# Production
+# 生產
 DJANGO_ALLOWED_HOSTS="example.com,www.example.com"
 
-# Development (NOT for production)
+# 開發（非生產）
 DJANGO_ALLOWED_HOSTS="*"
 
-# IP-based access
+# 基於 IP 的存取
 DJANGO_ALLOWED_HOSTS="192.168.1.100,10.0.0.50"
 ```
 
-### Optional Security Environment Variables
+### 可選的安全性環境變數
 
 #### `ROOT_PASSWORD`
 
-Default password for the root administrative user created during initial migration.
+初始遷移期間建立的根管理使用者的預設密碼。
 
 ```bash
 ROOT_PASSWORD="your-secure-password"
 ```
 
-**Important**:
-- Default value: `changeme` (insecure)
-- **MUST be changed before production deployment**
-- The root user is created automatically with `username: root`
-- Used for administrative access to the web UI and API
+**重要**：
+- 預設值：`changeme`（不安全）
+- **必須在生產部署前變更**
+- 根使用者自動建立，使用者名稱為 `root`
+- 用於網頁 UI 和 API 的管理存取
 
-**Security Note**: This password is only used during the initial database migration. After deployment, change it immediately through the Django admin interface or command line.
+**安全性注意**：此密碼僅在初始資料庫遷移期間使用。部署後，立即透過 Django 管理介面或命令列變更它。
 
-## Authentication & Authorization
+## 認證與授權
 
-### Authentication Methods
+### 認證方法
 
-The application supports three authentication methods (configured in `../src/aivonx/settings.py#L187-L196`):
+應用程式支援三種認證方法（在 `../src/aivonx/settings.py#L187-L196` 中配置）：
 
-#### 1. JWT Authentication (Primary)
+#### 1. JWT 認證（主要）
 
-JSON Web Token authentication using `djangorestframework-simplejwt`.
+使用 `djangorestframework-simplejwt` 的 JSON Web Token 認證。
 
-**Endpoint**: `POST /api/account/login`
+**端點**：`POST /api/account/login`
 
-**Request**:
+**請求**：
 ```json
 {
   "username": "root",
@@ -394,7 +132,7 @@ JSON Web Token authentication using `djangorestframework-simplejwt`.
 }
 ```
 
-**Response**:
+**回應**：
 ```json
 {
   "access": "eyJ0eXAiOiJKV1QiLCJhbGc...",
@@ -402,45 +140,45 @@ JSON Web Token authentication using `djangorestframework-simplejwt`.
 }
 ```
 
-**Usage**:
+**使用**：
 ```bash
-# Include access token in Authorization header
+# 在 Authorization 標頭中包含存取權杖
 Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGc...
 ```
 
-**Security Features**:
-- Stateless authentication
-- Time-limited access tokens
-- Refresh token rotation support
-- No server-side session storage required
+**安全性功能**：
+- 無狀態認證
+- 有時間限制的存取權杖
+- 支援重新整理權杖輪換
+- 不需要伺服器端會話儲存
 
-#### 2. Session Authentication
+#### 2. Session 認證
 
-Traditional Django session-based authentication using cookies.
+使用 cookie 的傳統 Django 會話式認證。
 
-**Use Case**: Web UI authentication via login forms
+**使用案例**：透過登入表單的網頁 UI 認證
 
-**Login URL**: `/ui/login` (configured via `LOGIN_URL` in `../src/aivonx/settings.py#L176`)
+**登入 URL**：`/ui/login`（透過 `../src/aivonx/settings.py#L176` 中的 `LOGIN_URL` 配置）
 
-**Features**:
-- CSRF protection enabled
-- Session cookie security
-- Server-side session management via Redis
+**功能**：
+- 啟用 CSRF 保護
+- 會話 cookie 安全性
+- 透過 Redis 的伺服器端會話管理
 
-#### 3. Token Authentication
+#### 3. Token 認證
 
-Django REST Framework token authentication.
+Django REST Framework token 認證。
 
-**Usage**:
+**使用**：
 ```bash
 Authorization: Token 9944b09199c62bcf9418ad846dd0e4bbdfc6ee4b
 ```
 
-### Authorization & Permissions
+### 授權與權限
 
-#### Default Permission Policy
+#### 預設權限政策
 
-**Global Setting**: All API endpoints require authentication by default.
+**全域設定**：所有 API 端點預設需要認證。
 
 ```python
 "DEFAULT_PERMISSION_CLASSES": (
@@ -448,119 +186,119 @@ Authorization: Token 9944b09199c62bcf9418ad846dd0e4bbdfc6ee4b
 )
 ```
 
-#### Permission Decorators
+#### 權限裝飾器
 
-Individual endpoints can override the default policy:
+個別端點可以覆寫預設政策：
 
-| Decorator | Behavior | Use Case |
+| 裝飾器 | 行為 | 使用案例 |
 |-----------|----------|----------|
-| `@permission_classes([IsAuthenticated])` | Requires valid authentication | Protected endpoints |
-| `@permission_classes([AllowAny])` | No authentication required | Public endpoints |
-| `@login_required` | Requires session login | Web UI views |
+| `@permission_classes([IsAuthenticated])` | 需要有效認證 | 受保護端點 |
+| `@permission_classes([AllowAny])` | 不需要認證 | 公開端點 |
+| `@login_required` | 需要會話登入 | 網頁 UI 檢視 |
 
-#### Endpoint Permission Map
+#### 端點權限對應
 
-| Endpoint | Permission | Rationale |
+| 端點 | 權限 | 理由 |
 |----------|------------|-----------|
-| `POST /api/account/login` | `AllowAny` | Public login endpoint |
-| `GET /api/proxy/state` | `AllowAny` | Public health/diagnostics |
-| `POST /api/proxy/generate` | `AllowAny` | Public proxy endpoint (configurable) |
-| `POST /api/proxy/chat` | `AllowAny` | Public proxy endpoint (configurable) |
-| `POST /api/proxy/embeddings` | `AllowAny` | Public proxy endpoint (configurable) |
-| `GET /api/tags` | `AllowAny` | Public model discovery |
-| `GET /api/config` | `IsAuthenticated` | Protected configuration access |
-| Web UI (`/ui/manage`) | `@login_required` | Session-based authentication |
-| Admin Panel (`/admin/`) | Staff users only | Django built-in admin |
+| `POST /api/account/login` | `AllowAny` | 公開登入端點 |
+| `GET /api/proxy/state` | `AllowAny` | 公開健康/診斷 |
+| `POST /api/proxy/generate` | `AllowAny` | 公開代理端點（可配置） |
+| `POST /api/proxy/chat` | `AllowAny` | 公開代理端點（可配置） |
+| `POST /api/proxy/embeddings` | `AllowAny` | 公開代理端點（可配置） |
+| `GET /api/tags` | `AllowAny` | 公開模型發現 |
+| `GET /api/config` | `IsAuthenticated` | 受保護配置存取 |
+| 網頁 UI (`/ui/manage`) | `@login_required` | 會話式認證 |
+| 管理面板 (`/admin/`) | 僅限員工使用者 | Django 內建管理 |
 
-**Security Consideration**: The proxy endpoints (`/api/proxy/*`) use `AllowAny` by default to facilitate integration with external tools. For production deployments requiring access control, consider:
-1. Implementing API key authentication
-2. Using a reverse proxy (nginx, Traefik) for IP whitelisting
-3. Deploying within a private network/VPN
+**安全性考量**：代理端點（`/api/proxy/*`）預設使用 `AllowAny` 以便與外部工具整合。對於需要存取控制的生產部署，請考慮：
+1. 實作 API 金鑰認證
+2. 使用反向代理（nginx、Traefik）進行 IP 白名單
+3. 在私有網路/VPN 中部署
 
-### Web UI Authentication
+### 網頁 UI 認證
 
-Web-based management interface requires session authentication:
+網頁式管理介面需要會話認證：
 
-- **Login URL**: `/ui/login`
-- **Protected URL**: `/ui/manage`
-- **Logout URL**: `/logout`
-- **Decorator**: `@login_required` + `@csrf_protect`
+- **登入 URL**：`/ui/login`
+- **受保護 URL**：`/ui/manage`
+- **登出 URL**：`/logout`
+- **裝飾器**：`@login_required` + `@csrf_protect`
 
-**Features**:
-- Session-based authentication with Redis backend
-- CSRF protection on all POST requests
-- Automatic redirect to login page for unauthenticated users
-- Redirect to management page after successful login
+**功能**：
+- 使用 Redis 後端的會話式認證
+- 在所有 POST 請求上啟用 CSRF 保護
+- 未認證使用者自動重新導向至登入頁面
+- 成功登入後重新導向至管理頁面
 
-## CORS & CSRF Protection
+## CORS 與 CSRF 保護
 
-### CORS (Cross-Origin Resource Sharing)
+### CORS（跨來源資源共享）
 
 #### `DJANGO_CORS_ALLOWED_ORIGINS`
 
-Comma-separated list of origins allowed to make cross-origin requests.
+允許進行跨來源請求的來源以逗號分隔列表。
 
 ```bash
 DJANGO_CORS_ALLOWED_ORIGINS="https://example.com,https://app.example.com"
 ```
 
-**Configuration**:
-- Automatically prefixes `http://` if scheme is missing
-- Supports both HTTP and HTTPS origins
-- Empty by default (no origins allowed)
-- Required for browser-based clients on different domains
+**配置**：
+- 如果缺少方案，自動加上 `http://`
+- 支援 HTTP 和 HTTPS 來源
+- 預設為空（不允許任何來源）
+- 對於不同域名的瀏覽器式客戶端必需
 
-**Examples**:
+**範例**：
 ```bash
-# Multiple origins with explicit schemes
+# 多個來源與明確方案
 DJANGO_CORS_ALLOWED_ORIGINS="https://example.com,https://api.example.com"
 
-# Will be auto-prefixed with http://
+# 將自動加上 http://
 DJANGO_CORS_ALLOWED_ORIGINS="localhost:3000,192.168.1.100:8080"
 
-# Production with multiple frontend domains
+# 多個前端域名的生產
 DJANGO_CORS_ALLOWED_ORIGINS="https://app.example.com,https://admin.example.com,https://mobile.example.com"
 ```
 
-#### CORS Settings
+#### CORS 設定
 
 ```python
-CORS_ALLOW_CREDENTIALS = True  # Allow cookies in cross-origin requests
+CORS_ALLOW_CREDENTIALS = True  # 允許跨來源請求中的 cookie
 ```
 
-**Security Note**: Only enable `CORS_ALLOW_CREDENTIALS` if your frontend needs to send cookies or authentication headers. Always pair with a restrictive `DJANGO_CORS_ALLOWED_ORIGINS` list.
+**安全性注意**：僅在您的前端需要傳送 cookie 或認證標頭時啟用 `CORS_ALLOW_CREDENTIALS`。總是與限制性的 `DJANGO_CORS_ALLOWED_ORIGINS` 列表配對。
 
-### CSRF (Cross-Site Request Forgery)
+### CSRF（跨站請求偽造）
 
 #### `DJANGO_CSRF_TRUSTED_ORIGINS`
 
-List of origins trusted for CSRF-protected requests (especially POST, PUT, DELETE).
+受信任的來源列表，用於 CSRF 保護請求（特別是 POST、PUT、DELETE）。
 
 ```bash
 DJANGO_CSRF_TRUSTED_ORIGINS="https://example.com,https://admin.example.com"
 ```
 
-**Requirements**:
-- Must include scheme (`http://` or `https://`)
-- Required for any domain making POST/PUT/DELETE requests
-- Automatically prefixes `http://` if scheme is missing
-- Must match the domains users will access
+**要求**：
+- 必須包含方案（`http://` 或 `https://`）
+- 對於任何進行 POST/PUT/DELETE 請求的域名必需
+- 如果缺少方案，自動加上 `http://`
+- 必須匹配使用者將存取的域名
 
-**Examples**:
+**範例**：
 ```bash
-# Production HTTPS deployment
+# HTTPS 生產部署
 DJANGO_CSRF_TRUSTED_ORIGINS="https://example.com,https://www.example.com"
 
-# Development environment
+# 開發環境
 DJANGO_CSRF_TRUSTED_ORIGINS="http://localhost:8000,http://127.0.0.1:8000"
 
-# Mixed environments (not recommended)
+# 混合環境（不推薦）
 DJANGO_CSRF_TRUSTED_ORIGINS="http://localhost:8000,https://production.example.com"
 ```
 
-#### CSRF Middleware
+#### CSRF 中介軟體
 
-CSRF protection is enforced via Django's `CsrfViewMiddleware`:
+CSRF 保護透過 Django 的 `CsrfViewMiddleware` 強制執行：
 
 ```python
 MIDDLEWARE = [
@@ -570,13 +308,13 @@ MIDDLEWARE = [
 ]
 ```
 
-**Protected Views**: All web UI views with `@csrf_protect` decorator require valid CSRF tokens in POST requests.
+**受保護檢視**：所有帶有 `@csrf_protect` 裝飾器的網頁 UI 檢視在 POST 請求中需要有效的 CSRF 權杖。
 
-## Database Security
+## 資料庫安全性
 
-### PostgreSQL Configuration
+### PostgreSQL 配置
 
-The application uses PostgreSQL as the primary database. Credentials are configured via environment variables:
+應用程式使用 PostgreSQL 作為主要資料庫。憑證透過環境變數配置：
 
 ```bash
 POSTGRES_USER="user"
@@ -586,28 +324,28 @@ POSTGRES_HOST="postgres"
 POSTGRES_PORT="5432"
 ```
 
-**Security Recommendations**:
-1. **Use strong passwords**: Minimum 16 characters with mixed case, numbers, and symbols
-2. **Limit network access**: Configure `pg_hba.conf` to restrict connections
-3. **Use SSL/TLS**: Enable SSL connections in production
-4. **Regular backups**: Implement automated backup procedures
-5. **Least privilege**: Create application-specific database users with minimal permissions
+**安全性建議**：
+1. **使用強密碼**：至少 16 個字元，包含大小寫、數字和符號
+2. **限制網路存取**：配置 `pg_hba.conf` 以限制連線
+3. **使用 SSL/TLS**：在生產中啟用 SSL 連線
+4. **定期備份**：實作自動化備份程序
+5. **最小權限**：建立應用程式特定的資料庫使用者，具有最小權限
 
-### Redis Configuration
+### Redis 配置
 
-Redis is used for caching and session storage:
+Redis 用於快取和會話儲存：
 
 ```bash
 REDIS_URL="redis://redis:6379/1"
 ```
 
-**Security Recommendations**:
-1. **Enable authentication**: Set `requirepass` in redis.conf
-2. **Bind to localhost**: Prevent external access unless required
-3. **Use separate databases**: Isolate cache and session data
-4. **Disable dangerous commands**: Use `rename-command` for FLUSHDB, FLUSHALL, etc.
+**安全性建議**：
+1. **啟用認證**：在 redis.conf 中設定 `requirepass`
+2. **綁定到 localhost**：除非必需，否則防止外部存取
+3. **使用單獨資料庫**：隔離快取和會話資料
+4. **停用危險命令**：對 FLUSHDB、FLUSHALL 等使用 `rename-command`
 
-### Connection Security
+### 連線安全性
 
 ```python
 DATABASES = {
@@ -622,171 +360,171 @@ DATABASES = {
 }
 ```
 
-**Production Hardening**:
-- Enable SSL: Add `'OPTIONS': {'sslmode': 'require'}` to the database configuration
-- Use connection pooling
-- Set appropriate connection timeouts
-- Monitor database logs for suspicious activity
+**生產強化**：
+- 啟用 SSL：將 `'OPTIONS': {'sslmode': 'require'}` 新增到資料庫配置
+- 使用連線池
+- 設定適當的連線逾時
+- 監控資料庫日誌以發現可疑活動
 
-## Password Security
+## 密碼安全性
 
-### Password Validation
+### 密碼驗證
 
-Django enforces strong password requirements through validators:
+Django 透過驗證器強制強密碼要求：
 
 ```python
 AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-        # Prevents passwords similar to user attributes (username, email, etc.)
+        # 防止密碼類似使用者屬性（使用者名稱、電子郵件等）
     },
     {
         'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-        # Default: Minimum 8 characters
+        # 預設：至少 8 個字元
     },
     {
         'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-        # Prevents use of common passwords (top 20,000 most common)
+        # 防止使用常見密碼（前 20,000 個最常見）
     },
     {
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-        # Prevents entirely numeric passwords
+        # 防止完全數值的密碼
     },
 ]
 ```
 
-**Enforced Requirements**:
-- ✓ Minimum 8 characters (configurable)
-- ✓ Cannot be entirely numeric
-- ✓ Cannot be too similar to username or email
-- ✓ Cannot be a commonly used password
-- ✓ Validated on user creation and password changes
+**強制要求**：
+- ✓ 至少 8 個字元（可配置）
+- ✓ 不能完全數值
+- ✓ 不能太類似使用者名稱或電子郵件
+- ✓ 不能是常用密碼
+- ✓ 在使用者建立和密碼變更時驗證
 
-### Password Hashing
+### 密碼雜湊
 
-Django uses PBKDF2 algorithm with SHA256 hash for password storage:
+Django 使用 PBKDF2 演算法與 SHA256 雜湊進行密碼儲存：
 
-- **Algorithm**: PBKDF2-HMAC-SHA256
-- **Iterations**: 870,000 (Django 5.2 default, increases with each version)
-- **Automatic upgrading**: Passwords are rehashed on login if iteration count increases
+- **演算法**：PBKDF2-HMAC-SHA256
+- **迭代**：870,000（Django 5.2 預設，每個版本增加）
+- **自動升級**：如果迭代計數增加，密碼在登入時重新雜湊
 
-**Security Note**: Passwords are never stored in plain text. The migration `../src/account/migrations/0003_create_root.py` uses `make_password()` to hash the root password before storage.
+**安全性注意**：密碼永遠不會以明文儲存。遷移 `../src/account/migrations/0003_create_root.py` 使用 `make_password()` 在儲存前雜湊根密碼。
 
-## Production Security Checklist
+## 生產安全性檢查清單
 
-Use this checklist before deploying to production:
+在部署到生產前使用此檢查清單：
 
-### Critical (Must-Have)
+### 關鍵（必須有）
 
-- [ ] Set `DJANGO_DEBUG=false`
-- [ ] Configure `DJANGO_SECRET_KEY` with a strong, random value (50+ characters)
-- [ ] Set `DJANGO_ALLOWED_HOSTS` to your actual domain(s)
-- [ ] Change `ROOT_PASSWORD` from default `changeme`
-- [ ] Enable HTTPS/TLS for all connections
-- [ ] Configure `DJANGO_CSRF_TRUSTED_ORIGINS` with your domains (including `https://` scheme)
-- [ ] Set strong `POSTGRES_PASSWORD` (16+ characters)
-- [ ] Review and restrict `DJANGO_CORS_ALLOWED_ORIGINS`
+- [ ] 設定 `DJANGO_DEBUG=false`
+- [ ] 使用強隨機值（50+ 字元）配置 `DJANGO_SECRET_KEY`
+- [ ] 將 `DJANGO_ALLOWED_HOSTS` 設定為您的實際域名
+- [ ] 從預設 `changeme` 變更 `ROOT_PASSWORD`
+- [ ] 為所有連線啟用 HTTPS/TLS
+- [ ] 使用您的域名（包括 `https://` 方案）配置 `DJANGO_CSRF_TRUSTED_ORIGINS`
+- [ ] 設定強 `POSTGRES_PASSWORD`（16+ 字元）
+- [ ] 檢視並限制 `DJANGO_CORS_ALLOWED_ORIGINS`
 
-### Recommended
+### 推薦
 
-- [ ] Enable database SSL connections
-- [ ] Configure Redis authentication (`requirepass`)
-- [ ] Set up log monitoring and alerting
-- [ ] Implement rate limiting on authentication endpoints
-- [ ] Use environment-specific `.env` files (never commit to git)
-- [ ] Enable Redis persistence for session data
-- [ ] Configure firewall rules to restrict database access
-- [ ] Set up automated database backups
-- [ ] Review all `AllowAny` permission endpoints and restrict if necessary
-- [ ] Implement API key authentication for proxy endpoints if needed
+- [ ] 啟用資料庫 SSL 連線
+- [ ] 配置 Redis 認證（`requirepass`）
+- [ ] 設定日誌監控和警報
+- [ ] 在認證端點上實作速率限制
+- [ ] 使用環境特定的 `.env` 檔案（永遠不要提交到 git）
+- [ ] 啟用 Redis 持久性以進行會話資料
+- [ ] 配置防火牆規則以限制資料庫存取
+- [ ] 設定自動化資料庫備份
+- [ ] 檢視所有 `AllowAny` 權限端點並視需要限制
+- [ ] 為代理端點實作 API 金鑰認證（如需要）
 
-### Security Headers (Recommended Additions)
+### 安全性標頭（推薦新增）
 
-Consider adding these security middleware and headers:
+考慮新增這些安全性中介軟體和標頭：
 
 ```python
-# settings.py additions for production
+# settings.py 新增以進行生產
 
-# Security Middleware Settings
-SECURE_SSL_REDIRECT = True  # Redirect HTTP to HTTPS
-SECURE_HSTS_SECONDS = 31536000  # 1 year
+# 安全性中介軟體設定
+SECURE_SSL_REDIRECT = True  # 將 HTTP 重新導向至 HTTPS
+SECURE_HSTS_SECONDS = 31536000  # 1 年
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_BROWSER_XSS_FILTER = True
-X_FRAME_OPTIONS = 'DENY'  # Prevent clickjacking
-SESSION_COOKIE_SECURE = True  # HTTPS only cookies
-CSRF_COOKIE_SECURE = True  # HTTPS only CSRF cookies
-SESSION_COOKIE_HTTPONLY = True  # Prevent JavaScript access to session cookie
+X_FRAME_OPTIONS = 'DENY'  # 防止點擊劫持
+SESSION_COOKIE_SECURE = True  # HTTPS 僅 cookie
+CSRF_COOKIE_SECURE = True  # HTTPS 僅 CSRF cookie
+SESSION_COOKIE_HTTPONLY = True  # 防止 JavaScript 存取會話 cookie
 CSRF_COOKIE_HTTPONLY = True
 ```
 
-**Note**: These settings are not currently enabled by default but are strongly recommended for production HTTPS deployments.
+**注意**：這些設定預設未啟用，但強烈推薦用於 HTTPS 生產部署。
 
-## Security Middleware
+## 安全性中介軟體
 
-The application uses Django's security middleware stack (configured in `../src/aivonx/settings.py#L68-L77`):
+應用程式使用 Django 的安全性中介軟體堆疊（在 `../src/aivonx/settings.py#L68-L77` 中配置）：
 
 ```python
 MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',  # Security headers
-    'django.contrib.sessions.middleware.SessionMiddleware',  # Session management
-    'django.middleware.common.CommonMiddleware',  # Common utilities
-    'django.middleware.csrf.CsrfViewMiddleware',  # CSRF protection
-    'django.contrib.auth.middleware.AuthenticationMiddleware',  # Auth
-    'django.contrib.messages.middleware.MessageMiddleware',  # Flash messages
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',  # Clickjacking protection
-    'corsheaders.middleware.CorsMiddleware',  # CORS handling
-    'whitenoise.middleware.WhiteNoiseMiddleware',  # Static file serving
+    'django.middleware.security.SecurityMiddleware',  # 安全性標頭
+    'django.contrib.sessions.middleware.SessionMiddleware',  # 會話管理
+    'django.middleware.common.CommonMiddleware',  # 通用工具
+    'django.middleware.csrf.CsrfViewMiddleware',  # CSRF 保護
+    'django.contrib.auth.middleware.AuthenticationMiddleware',  # 認證
+    'django.contrib.messages.middleware.MessageMiddleware',  # 快閃訊息
+    'django.middleware.clickjacking.XFrameOptionsMiddleware',  # 點擊劫持保護
+    'corsheaders.middleware.CorsMiddleware',  # CORS 處理
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # 靜態檔案服務
 ]
 ```
 
-### Middleware Functions
+### 中介軟體功能
 
-| Middleware | Function | Security Benefit |
+| 中介軟體 | 功能 | 安全性益處 |
 |------------|----------|------------------|
-| `SecurityMiddleware` | Adds security headers | HSTS, SSL redirect, content type sniffing protection |
-| `SessionMiddleware` | Manages user sessions | Secure session handling via Redis |
-| `CsrfViewMiddleware` | CSRF token validation | Prevents CSRF attacks on state-changing operations |
-| `AuthenticationMiddleware` | User authentication | Attaches authenticated user to requests |
-| `XFrameOptionsMiddleware` | X-Frame-Options header | Prevents clickjacking attacks |
-| `CorsMiddleware` | CORS policy enforcement | Controls cross-origin resource access |
+| `SecurityMiddleware` | 新增安全性標頭 | HSTS、SSL 重新導向、內容類型嗅探保護 |
+| `SessionMiddleware` | 管理使用者會話 | 透過 Redis 的安全會話處理 |
+| `CsrfViewMiddleware` | CSRF 權杖驗證 | 防止 CSRF 攻擊於狀態變更操作 |
+| `AuthenticationMiddleware` | 使用者認證 | 將認證使用者附加到請求 |
+| `XFrameOptionsMiddleware` | X-Frame-Options 標頭 | 防止點擊劫持攻擊 |
+| `CorsMiddleware` | CORS 政策強制 | 控制跨來源資源存取 |
 
-## API Endpoint Security
+## API 端點安全性
 
-### Public Endpoints (No Authentication Required)
+### 公開端點（不需要認證）
 
-These endpoints use `@permission_classes([AllowAny])`:
+這些端點使用 `@permission_classes([AllowAny])`：
 
-| Endpoint | Method | Purpose | Security Note |
+| 端點 | 方法 | 目的 | 安全性注意 |
 |----------|--------|---------|---------------|
-| `/api/account/login` | POST | User authentication | Public by design (login endpoint) |
-| `/api/proxy/state` | GET | Health check | Diagnostics endpoint, minimal information exposure |
-| `/api/proxy/generate` | POST | Ollama proxy | Consider restricting in production |
-| `/api/proxy/chat` | POST | Ollama proxy | Consider restricting in production |
-| `/api/proxy/embeddings` | POST | Ollama proxy | Consider restricting in production |
-| `/api/proxy/embed` | POST | Ollama proxy | Consider restricting in production |
-| `/api/tags` | GET | Model listing | Public model discovery |
-| `/health` | GET | Application health | Basic health check |
+| `/api/account/login` | POST | 使用者認證 | 設計為公開（登入端點） |
+| `/api/proxy/state` | GET | 健康檢查 | 診斷端點，最小資訊暴露 |
+| `/api/proxy/generate` | POST | Ollama 代理 | 考慮在生產中限制 |
+| `/api/proxy/chat` | POST | Ollama 代理 | 考慮在生產中限制 |
+| `/api/proxy/embeddings` | POST | Ollama 代理 | 考慮在生產中限制 |
+| `/api/proxy/embed` | POST | Ollama 代理 | 考慮在生產中限制 |
+| `/api/tags` | GET | 模型列表 | 公開模型發現 |
+| `/health` | GET | 應用程式健康 | 基本健康檢查 |
 
-### Protected Endpoints (Authentication Required)
+### 受保護端點（需要認證）
 
-These endpoints require valid authentication (JWT, Session, or Token):
+這些端點需要有效認證（JWT、Session 或 Token）：
 
-| Endpoint | Method | Permission | Purpose |
+| 端點 | 方法 | 權限 | 目的 |
 |----------|--------|------------|---------|
-| `/api/config` | GET | `IsAuthenticated` | Configuration retrieval |
-| `/api/proxy/nodes` | GET/POST/PUT/DELETE | Default (`IsAuthenticated`) | Node management |
-| `/ui/manage` | GET/POST | `@login_required` | Web UI management interface |
-| `/admin/*` | ALL | Staff users | Django admin panel |
+| `/api/config` | GET | `IsAuthenticated` | 配置擷取 |
+| `/api/proxy/nodes` | GET/POST/PUT/DELETE | 預設（`IsAuthenticated`） | 節點管理 |
+| `/ui/manage` | GET/POST | `@login_required` | 網頁 UI 管理介面 |
+| `/admin/*` | ALL | 員工使用者 | Django 管理面板 |
 
-### Security Recommendations for Proxy Endpoints
+### 代理端點的安全性建議
 
-The proxy endpoints (`/api/proxy/*`) are public by default to facilitate integration with Ollama-compatible tools. For production deployments requiring access control:
+代理端點（`/api/proxy/*`）預設為公開以便與 Ollama 相容工具整合。對於需要存取控制的生產部署：
 
-#### Option 1: Reverse Proxy Authentication
+#### 選項 1：反向代理認證
 
-Use nginx or Traefik to add authentication:
+使用 nginx 或 Traefik 新增認證：
 
 ```nginx
 location /api/proxy/ {
@@ -796,9 +534,9 @@ location /api/proxy/ {
 }
 ```
 
-#### Option 2: IP Whitelisting
+#### 選項 2：IP 白名單
 
-Restrict access to known IP addresses:
+限制存取已知 IP 位址：
 
 ```nginx
 location /api/proxy/ {
@@ -809,105 +547,105 @@ location /api/proxy/ {
 }
 ```
 
-#### Option 3: VPN/Private Network
+#### 選項 3：VPN/私有網路
 
-Deploy within a private network accessible only via VPN.
+在僅透過 VPN 存取的私有網路中部署。
 
-#### Option 4: Custom Authentication
+#### 選項 4：自訂認證
 
-Modify the code to require authentication:
+修改程式碼以需要認證：
 
 ```python
-# In views_proxy.py, change:
+# 在 views_proxy.py 中，變更：
 @permission_classes([AllowAny])
-# To:
+# 為：
 @permission_classes([IsAuthenticated])
 ```
 
-## Logging & Monitoring
+## 日誌與監控
 
-### Security-Relevant Logging
+### 安全性相關日誌
 
-The application implements comprehensive logging (configured in `../src/aivonx/settings.py#L214-L326`):
+應用程式實作全面日誌（在 `../src/aivonx/settings.py#L214-L326` 中配置）：
 
-#### Log Files
+#### 日誌檔案
 
-| Log File | Purpose | Content |
+| 日誌檔案 | 目的 | 內容 |
 |----------|---------|---------|
-| `logs/django.json` | General application logs | INFO level, all Django operations |
-| `logs/django_error.log` | Error logs | ERROR level, exceptions and errors |
-| `logs/proxy.json` | Proxy operation logs | Proxy requests, node selection, errors |
+| `logs/django.json` | 一般應用程式日誌 | INFO 級別，所有 Django 操作 |
+| `logs/django_error.log` | 錯誤日誌 | ERROR 級別，例外和錯誤 |
+| `logs/proxy.json` | 代理操作日誌 | 代理請求、節點選擇、錯誤 |
 
-#### Security Events Logged
+#### 記錄的安全性事件
 
-- Authentication attempts (success/failure)
-- Authorization failures
-- Request errors (400, 401, 403, 404, 500 series)
-- Database connection issues
-- Proxy node failures
+- 認證嘗試（成功/失敗）
+- 授權失敗
+- 請求錯誤（400、401、403、404、500 系列）
+- 資料庫連線問題
+- 代理節點失敗
 
-#### Log Formats
+#### 日誌格式
 
-- **JSON Format**: Structured logs for easy parsing and analysis
-- **Verbose Format**: Detailed logs with module, process, thread information
-- **Rotation**: 10MB per file, 3 backups retained
+- **JSON 格式**：結構化日誌，便於解析和分析
+- **詳細格式**：詳細日誌，具有模組、處理序、執行緒資訊
+- **輪換**：每個檔案 10MB，保留 3 個備份
 
-### Monitoring Recommendations
+### 監控建議
 
-1. **Monitor failed authentication attempts**: Detect brute-force attacks
-2. **Track error rates**: Identify potential attacks or system issues
-3. **Monitor proxy endpoint usage**: Detect abuse or unusual patterns
-4. **Database connection monitoring**: Detect potential database attacks
-5. **Log aggregation**: Use ELK stack, Splunk, or similar for centralized logging
+1. **監控失敗認證嘗試**：偵測暴力攻擊
+2. **追蹤錯誤率**：識別潛在攻擊或系統問題
+3. **監控代理端點使用**：偵測濫用或異常模式
+4. **資料庫連線監控**：偵測潛在資料庫攻擊
+5. **日誌聚合**：使用 ELK 堆疊、Splunk 或類似進行集中式日誌
 
-### Example: Monitoring Failed Logins
+### 範例：監控失敗登入
 
 ```bash
-# Parse JSON logs for failed login attempts
+# 解析 JSON 日誌以尋找失敗登入嘗試
 cat logs/django.json | jq 'select(.message | contains("Invalid credentials"))'
 
-# Count failed login attempts in the last hour
+# 計算過去一小時的失敗登入嘗試數
 cat logs/django.json | \
   jq -r 'select(.message | contains("Invalid credentials")) | .asctime' | \
   awk -v now="$(date +%s)" '{ ... }' | wc -l
 ```
 
-## Container Security
+## 容器安全性
 
-### Docker Configuration
+### Docker 配置
 
-The application runs in Docker containers with security configurations:
+應用程式在具有安全性配置的 Docker 容器中執行：
 
-#### Container Settings (`../docker-compose.yml#L1-L8`)
+#### 容器設定（`../docker-compose.yml#L1-L8`）
 
 ```yaml
 x-default-opts: &default-opts
   restart: unless-stopped
   tty: true
   stdin_open: true
-  privileged: false  # Never run with elevated privileges
-  ipc: private  # Isolated IPC namespace
+  privileged: false  # 永遠不要以提升權限執行
+  ipc: private  # 隔離 IPC 命名空間
 ```
 
-**Security Features**:
-- ✓ `privileged: false` - Prevents container from gaining root-equivalent host access
-- ✓ `ipc: private` - Isolates inter-process communication
-- ✓ Non-root user context (recommended addition, see below)
-- ✓ Health checks for all services
-- ✓ Isolated bridge network
+**安全性功能**：
+- ✓ `privileged: false` - 防止容器獲得根等效主機存取
+- ✓ `ipc: private` - 隔離處理序間通訊
+- ✓ 非根使用者上下文（推薦新增，請參見下方）
+- ✓ 所有服務的健康檢查
+- ✓ 隔離橋接網路
 
-### Container Hardening Recommendations
+### 容器強化建議
 
-#### 1. Run as Non-Root User
+#### 1. 以非根使用者執行
 
-Add to Dockerfile:
+新增到 Dockerfile：
 
 ```dockerfile
 RUN useradd -m -u 1000 appuser
 USER appuser
 ```
 
-#### 2. Read-Only Filesystem
+#### 2. 唯讀檔案系統
 
 ```yaml
 services:
@@ -918,7 +656,7 @@ services:
       - /app/logs
 ```
 
-#### 3. Resource Limits
+#### 3. 資源限制
 
 ```yaml
 services:
@@ -932,7 +670,7 @@ services:
           memory: 512M
 ```
 
-#### 4. Network Segmentation
+#### 4. 網路分段
 
 ```yaml
 networks:
@@ -940,7 +678,7 @@ networks:
     driver: bridge
   backend:
     driver: bridge
-    internal: true  # No internet access
+    internal: true  # 無網際網路存取
 
 services:
   django:
@@ -949,12 +687,12 @@ services:
       - backend
   postgres:
     networks:
-      - backend  # Database only accessible from backend network
+      - backend  # 資料庫僅從後端網路存取
 ```
 
-#### 5. Secrets Management
+#### 5. 秘密管理
 
-Use Docker secrets instead of environment variables for sensitive data:
+使用 Docker 秘密而非環境變數進行敏感資料：
 
 ```yaml
 secrets:
@@ -970,61 +708,53 @@ services:
       - secret_key
 ```
 
-### Image Security
+### 映像安全性
 
-- **Base Image**: `python:3.12-slim-bookworm` (minimal attack surface)
-- **Package Updates**: Regular base image updates
-- **Vulnerability Scanning**: Run `docker scan` or Trivy regularly
+- **基礎映像**：`python:3.12-slim-bookworm`（最小攻擊面）
+- **套件更新**：定期基礎映像更新
+- **漏洞掃描**：定期執行 `docker scan` 或 Trivy
 
 ```bash
-# Scan for vulnerabilities
+# 掃描漏洞
 docker scan aivonx_proxy:latest
 
-# Or use Trivy
+# 或使用 Trivy
 trivy image aivonx_proxy:latest
 ```
 
-## Additional Security Resources
+## 額外安全性資源
 
-### Django Security Documentation
+### Django 安全性文件
 
-- [Django Security Overview](https://docs.djangoproject.com/en/5.2/topics/security/)
-- [Django Deployment Checklist](https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/)
-- [Django Authentication System](https://docs.djangoproject.com/en/5.2/topics/auth/)
+- [Django 安全性概述](https://docs.djangoproject.com/en/5.2/topics/security/)
+- [Django 部署檢查清單](https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/)
+- [Django 認證系統](https://docs.djangoproject.com/en/5.2/topics/auth/)
 
-### OWASP Resources
+### OWASP 資源
 
 - [OWASP Top 10](https://owasp.org/www-project-top-ten/)
-- [OWASP REST Security Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/REST_Security_Cheat_Sheet.html)
-- [OWASP Docker Security Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Docker_Security_Cheat_Sheet.html)
+- [OWASP REST 安全性速查表](https://cheatsheetseries.owasp.org/cheatsheets/REST_Security_Cheat_Sheet.html)
+- [OWASP Docker 安全性速查表](https://cheatsheetseries.owasp.org/cheatsheets/Docker_Security_Cheat_Sheet.html)
 
-### Security Testing Tools
+### 安全性測試工具
 
-- **OWASP ZAP**: Automated security testing
-- **Bandit**: Python security linter
-- **Safety**: Python dependency vulnerability scanner
-- **Trivy**: Container vulnerability scanner
+- **OWASP ZAP**：自動化安全性測試
+- **Bandit**：Python 安全性 linter
+- **Safety**：Python 依賴漏洞掃描器
+- **Trivy**：容器漏洞掃描器
 
 ```bash
-# Run security checks
+# 執行安全性檢查
 bandit -r src/
 safety check
 trivy image your-image:tag
 ```
 
-## Security Contact
+## 安全性聯絡
 
-If you discover a security vulnerability, please:
+如果您發現安全性漏洞，請：
 
-1. **Do NOT** open a public issue
-2. Email the maintainers directly (see `../../README.md`)
-3. Include detailed steps to reproduce
-4. Allow reasonable time for a fix before public disclosure
-
-## Changelog
-
-- **2024-12-26**: Initial comprehensive security documentation
-- Added detailed environment variable descriptions
-- Added authentication and authorization sections
-- Added production security checklist
-- Added container security recommendations
+1. **不要**開啟公開問題
+2. 直接電子郵件維護者（請參見 `../../README.md`）
+3. 包含重現的詳細步驟
+4. 在公開披露前允許合理時間修復
